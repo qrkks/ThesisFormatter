@@ -1,4 +1,7 @@
-﻿' 处理标题的格式化宏
+﻿Private Const PAGE_NUMBER_MODE_ARABIC_ONLY As Integer = 1
+Private Const PAGE_NUMBER_MODE_MIXED_BY_TOC As Integer = 2
+
+' 处理标题的格式化宏
 Sub FormatTitleByHeadingStyle()
     Dim para As Paragraph
     For Each para In ActiveDocument.Paragraphs
@@ -382,26 +385,7 @@ Sub InsertTableOfContents()
             Exit For
         End If
     Next i
-    On Error Resume Next
-    tocTitlePara.Style = ActiveDocument.Styles("TOC 标题")
-    If Err.Number <> 0 Then
-        tocTitlePara.Style = ActiveDocument.Styles("正文文本")
-        If Err.Number <> 0 Then
-            tocTitlePara.Style = ActiveDocument.Styles("Normal")
-        End If
-    End If
-    On Error GoTo 0
-    With tocTitleRange.Font
-        .NameFarEast = "宋体"
-        .Name = "Times New Roman"
-        .Size = 18
-        .Bold = True
-        .Color = wdColorBlack
-    End With
-    With tocTitleRange.ParagraphFormat
-        .Alignment = wdAlignParagraphCenter
-        .FirstLineIndent = 0
-    End With
+    ApplyTOCTitleStyle tocTitlePara
 
     ' 6. 插入目录域
     tocTitleRange.Collapse wdCollapseEnd
@@ -451,6 +435,61 @@ Private Function GetFirstTOCField() As Field
         End If
     Next fld
 End Function
+
+Private Sub ConfigureTOCTitleStyle()
+    Dim tocStyle As Style
+    
+    On Error Resume Next
+    Set tocStyle = ActiveDocument.Styles("TOC 标题")
+    On Error GoTo 0
+    
+    If tocStyle Is Nothing Then Exit Sub
+    
+    With tocStyle.Font
+        .NameFarEast = "宋体"
+        .Name = "Times New Roman"
+        .Size = 18
+        .Bold = True
+        .Color = wdColorBlack
+    End With
+    
+    With tocStyle.ParagraphFormat
+        .Alignment = wdAlignParagraphCenter
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+        .LineSpacingRule = wdLineSpace1pt5
+    End With
+End Sub
+
+Private Sub ApplyTOCTitleStyle(ByVal para As Paragraph)
+    ConfigureTOCTitleStyle
+    
+    On Error Resume Next
+    para.Style = ActiveDocument.Styles("TOC 标题")
+    If Err.Number <> 0 Then
+        Err.Clear
+        para.Style = ActiveDocument.Styles("正文文本")
+        If Err.Number <> 0 Then
+            Err.Clear
+            para.Style = ActiveDocument.Styles("Normal")
+        End If
+
+        With para.Range.Font
+            .NameFarEast = "宋体"
+            .Name = "Times New Roman"
+            .Size = 18
+            .Bold = True
+            .Color = wdColorBlack
+        End With
+        
+        With para.Range.ParagraphFormat
+            .Alignment = wdAlignParagraphCenter
+            .FirstLineIndent = 0
+        End With
+    End If
+    On Error GoTo 0
+End Sub
 
 ' 如果已存在目录域，则统一目录标题并更新目录
 Private Function NormalizeExistingTableOfContents() As Boolean
@@ -510,31 +549,8 @@ Private Function NormalizeExistingTableOfContents() As Boolean
         End If
     End If
     
-    On Error Resume Next
-    titlePara.Style = ActiveDocument.Styles("TOC 标题")
-    If Err.Number <> 0 Then
-        Err.Clear
-        titlePara.Style = ActiveDocument.Styles("正文文本")
-        If Err.Number <> 0 Then
-            Err.Clear
-            titlePara.Style = ActiveDocument.Styles("Normal")
-        End If
-    End If
-    On Error GoTo 0
-    
-    With titlePara.Range.Font
-        .NameFarEast = "宋体"
-        .Name = "Times New Roman"
-        .Size = 18
-        .Bold = True
-        .Color = wdColorBlack
-    End With
-    
-    With titlePara.Range.ParagraphFormat
-        .Alignment = wdAlignParagraphCenter
-        .FirstLineIndent = 0
-        .PageBreakBefore = True
-    End With
+    ApplyTOCTitleStyle titlePara
+    EnsurePageBreakBeforeParagraph titlePara
     
     For i = 1 To ActiveDocument.Paragraphs.Count
         If ActiveDocument.Paragraphs(i).Range.Start = tocLastPara.Range.Start Then
@@ -544,32 +560,6 @@ Private Function NormalizeExistingTableOfContents() As Boolean
     Next i
     
     tocField.Update
-    
-    If tocLastParaIndex > 0 And tocLastParaIndex < ActiveDocument.Paragraphs.Count Then
-        nextIndex = tocLastParaIndex + 1
-        
-        Do While nextIndex <= ActiveDocument.Paragraphs.Count
-            Set nextPara = ActiveDocument.Paragraphs(nextIndex)
-            nextText = Trim(Replace(nextPara.Range.Text, vbCr, ""))
-            
-            If Len(nextText) > 0 Then
-                Exit Do
-            End If
-            nextIndex = nextIndex + 1
-        Loop
-        
-        If nextIndex > ActiveDocument.Paragraphs.Count Then
-            Set nextPara = Nothing
-        End If
-    Else
-        Set insertRange = ActiveDocument.Range(tocField.Result.End, tocField.Result.End)
-        insertRange.InsertAfter vbCr
-        Set nextPara = ActiveDocument.Range(insertRange.Start, insertRange.Start + 1).Paragraphs(1)
-    End If
-    
-    If Not nextPara Is Nothing Then
-        nextPara.Range.ParagraphFormat.PageBreakBefore = True
-    End If
     
     FormatTableOfContentsEntries
     NormalizeExistingTableOfContents = True
@@ -643,8 +633,6 @@ Sub FormatReferences()
     Dim para As Paragraph
     Dim txt As String
     Dim i As Integer
-    Dim refRange As Range
-    Dim checkRange As Range
     
     For i = 1 To ActiveDocument.Paragraphs.Count
         Set para = ActiveDocument.Paragraphs(i)
@@ -653,16 +641,6 @@ Sub FormatReferences()
         ' 查找参考文献标题
         If txt = "参考文献" Or txt = "References" Or _
            Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
-            ' 在参考文献标题前添加分页符（若尚未存在）
-            Set refRange = para.Range.Duplicate
-            refRange.Collapse wdCollapseStart
-            If refRange.Start > 0 Then
-                Set checkRange = ActiveDocument.Range(refRange.Start - 1, refRange.Start)
-                If checkRange.Text <> Chr(12) Then
-                    refRange.InsertBreak Type:=wdPageBreak
-                End If
-            End If
-            
             ' 先设置样式，再格式化
             On Error Resume Next
             para.Style = ActiveDocument.Styles("标题 1")
@@ -686,6 +664,7 @@ Sub FormatReferences()
                 .LeftIndent = 0
                 .RightIndent = 0
             End With
+            EnsurePageBreakBeforeParagraph para
             
         End If
     Next i
@@ -1002,6 +981,180 @@ Sub ProcessReferencesWithSort()
     ' MsgBox "参考文献处理完成（包含排序）！"
 End Sub
 
+' 对外入口：全文使用阿拉伯数字页码
+Public Sub ApplyArabicPageNumbersOnly()
+    ApplyPageNumbers PAGE_NUMBER_MODE_ARABIC_ONLY
+End Sub
+
+' 对外入口：目录前使用罗马数字，目录后使用阿拉伯数字
+Public Sub ApplyMixedPageNumbersByTOC()
+    ApplyPageNumbers PAGE_NUMBER_MODE_MIXED_BY_TOC
+End Sub
+
+Private Sub ApplyPageNumbers(ByVal mode As Integer)
+    ClearAllPageNumbers
+    
+    Select Case mode
+        Case PAGE_NUMBER_MODE_ARABIC_ONLY
+            ApplyArabicPageNumbersToAllSections
+        Case PAGE_NUMBER_MODE_MIXED_BY_TOC
+            EnsureSectionBreakAfterTableOfContents
+            ApplyMixedPageNumbersBySections
+        Case Else
+            Err.Raise vbObjectError + 1000, , "未知的页码模式。"
+    End Select
+End Sub
+
+Private Sub EnsureSectionBreakAfterTableOfContents()
+    Dim tocField As Field
+    Dim para As Paragraph
+    Dim cleanupPara As Paragraph
+    Dim nextPara As Paragraph
+    Dim breakRange As Range
+    Dim gapRange As Range
+    Dim txt As String
+    Dim i As Integer
+    
+    If ActiveDocument.Sections.Count > 1 Then Exit Sub
+    
+    Set tocField = GetFirstTOCField()
+    If tocField Is Nothing Then Exit Sub
+
+    Set nextPara = Nothing
+    For Each para In ActiveDocument.Paragraphs
+        If para.Range.Start >= tocField.Result.End Then
+            txt = Trim(Replace(para.Range.Text, vbCr, ""))
+            If Len(txt) > 0 Then
+                Set nextPara = para
+                Exit For
+            End If
+        End If
+    Next para
+
+    If nextPara Is Nothing Then Exit Sub
+
+    Set gapRange = ActiveDocument.Range(tocField.Result.End, nextPara.Range.Start)
+    With gapRange.Find
+        .ClearFormatting
+        .Text = "^b"
+        .Forward = True
+        .Wrap = wdFindStop
+        If .Execute Then
+            Exit Sub
+        End If
+    End With
+
+    If GetSectionIndexByPosition(nextPara.Range.Start) > GetSectionIndexByPosition(tocField.Result.Start) Then
+        Exit Sub
+    End If
+
+    For i = ActiveDocument.Paragraphs.Count To 1 Step -1
+        Set cleanupPara = ActiveDocument.Paragraphs(i)
+        If cleanupPara.Range.Start >= tocField.Result.End And cleanupPara.Range.Start < nextPara.Range.Start Then
+            txt = Trim(Replace(cleanupPara.Range.Text, vbCr, ""))
+            If Len(txt) = 0 Then
+                On Error Resume Next
+                cleanupPara.Range.Delete
+                On Error GoTo 0
+            End If
+        End If
+    Next i
+
+    nextPara.Range.ParagraphFormat.PageBreakBefore = False
+    Set breakRange = nextPara.Range.Duplicate
+    breakRange.Collapse wdCollapseStart
+    breakRange.InsertBreak Type:=wdSectionBreakNextPage
+End Sub
+
+Private Function GetSectionIndexByPosition(ByVal pos As Long) As Integer
+    Dim i As Integer
+    
+    For i = 1 To ActiveDocument.Sections.Count
+        If pos >= ActiveDocument.Sections(i).Range.Start And pos <= ActiveDocument.Sections(i).Range.End Then
+            GetSectionIndexByPosition = i
+            Exit Function
+        End If
+    Next i
+End Function
+
+Private Sub ClearAllPageNumbers()
+    Dim sec As Section
+    Dim hf As HeaderFooter
+    Dim idx As Integer
+    
+    For Each sec In ActiveDocument.Sections
+        For idx = wdHeaderFooterPrimary To wdHeaderFooterEvenPages
+            Set hf = sec.Footers(idx)
+            On Error Resume Next
+            hf.LinkToPrevious = False
+            hf.PageNumbers.RestartNumberingAtSection = False
+            hf.PageNumbers.NumberStyle = wdPageNumberStyleArabic
+            Do While hf.PageNumbers.Count > 0
+                hf.PageNumbers(1).Delete
+            Loop
+            On Error GoTo 0
+        Next idx
+    Next sec
+End Sub
+
+Private Sub EnsureCenteredFooterPageNumber(ByVal sec As Section)
+    With sec.Footers(wdHeaderFooterPrimary)
+        .LinkToPrevious = False
+        If .PageNumbers.Count = 0 Then
+            .PageNumbers.Add PageNumberAlignment:=wdAlignPageNumberCenter, FirstPage:=True
+        End If
+    End With
+End Sub
+
+Private Sub ApplyArabicPageNumbersToAllSections()
+    Dim sec As Section
+    
+    For Each sec In ActiveDocument.Sections
+        EnsureCenteredFooterPageNumber sec
+        With sec.Footers(wdHeaderFooterPrimary).PageNumbers
+            .NumberStyle = wdPageNumberStyleArabic
+            .RestartNumberingAtSection = False
+        End With
+    Next sec
+End Sub
+
+Private Sub ApplyMixedPageNumbersBySections()
+    Dim tocField As Field
+    Dim tocSectionIndex As Integer
+    Dim i As Integer
+    
+    Set tocField = GetFirstTOCField()
+    If tocField Is Nothing Then
+        ApplyArabicPageNumbersToAllSections
+        Exit Sub
+    End If
+    
+    tocSectionIndex = GetSectionIndexByPosition(tocField.Result.End)
+    If tocSectionIndex = 0 Then
+        ApplyArabicPageNumbersToAllSections
+        Exit Sub
+    End If
+    
+    For i = 1 To ActiveDocument.Sections.Count
+        EnsureCenteredFooterPageNumber ActiveDocument.Sections(i)
+        
+        With ActiveDocument.Sections(i).Footers(wdHeaderFooterPrimary).PageNumbers
+            If i <= tocSectionIndex Then
+                .NumberStyle = wdPageNumberStyleLowercaseRoman
+                .RestartNumberingAtSection = False
+            Else
+                .NumberStyle = wdPageNumberStyleArabic
+                If i = tocSectionIndex + 1 Then
+                    .RestartNumberingAtSection = True
+                    .StartingNumber = 1
+                Else
+                    .RestartNumberingAtSection = False
+                End If
+            End If
+        End With
+    Next i
+End Sub
+
 ' 对外公开入口：将文档格式化为山东中医药大学论文格式
 Public Sub FormatThesisToSDUTCM()
     Dim response As Integer
@@ -1014,7 +1167,8 @@ Public Sub FormatThesisToSDUTCM()
                      "4. 摘要和关键词格式化" & vbCrLf & _
                      "5. 目录处理（已有目录则更新，否则按“目录”位置插入）" & vbCrLf & _
                      "6. 参考文献格式化（包含排序）" & vbCrLf & _
-                     "7. 图片与图题处理" & vbCrLf & vbCrLf & _
+                     "7. 图片与图题处理" & vbCrLf & _
+                     "8. 页码处理（目录前罗马数字，目录后阿拉伯数字）" & vbCrLf & vbCrLf & _
                      "是否继续？", vbYesNo + vbQuestion, "山东中医药大学论文格式化")
     
     If response = vbNo Then
@@ -1089,6 +1243,9 @@ Private Sub RunSDUTCMFormatting()
     
     ' 6. Images
     ProcessImages
+    
+    ' 7. Mixed page numbers by TOC
+    ApplyMixedPageNumbersByTOC
 End Sub
 
 ' Return the localized Word title style name: 标题
@@ -1110,6 +1267,11 @@ End Function
 Private Function ZhBodyStyleName() As String
     ZhBodyStyleName = ChrW(&H6B63) & ChrW(&H6587)
 End Function
+
+Private Sub EnsurePageBreakBeforeParagraph(ByVal para As Paragraph)
+    If para Is Nothing Then Exit Sub
+    para.Range.ParagraphFormat.PageBreakBefore = True
+End Sub
 
 ' Format a title paragraph
 Sub FormatTitleParagraph(para As Paragraph)
