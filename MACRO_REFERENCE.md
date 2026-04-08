@@ -8,7 +8,7 @@
 - 想单独运行某些宏的人
 - 需要理解调用关系的人
 
-普通用户建议优先阅读 [README.md](/C:/Coding/ThesisFormatter/README.md)。
+普通用户建议优先阅读 [`README.md`](./README.md)。
 
 ## 1. 主要公开入口
 
@@ -246,7 +246,7 @@
 
 ### 分页辅助
 
-### `EnsurePageBreakBeforeParagraph`
+#### `EnsurePageBreakBeforeParagraph`
 
 将某个段落设置为“段前分页”。
 

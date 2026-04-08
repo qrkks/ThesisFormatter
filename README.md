@@ -1,10 +1,26 @@
 # ThesisFormatter
 
-这是一个用于 Word 的 VBA 宏文件，用来将论文快速整理为山东中医药大学论文格式。
+用于将 Word 论文快速整理为山东中医药大学论文格式的 VBA 宏项目。
+
+## 先看这里
+
+运行宏前，请先备份文档。
+
+原因：
+
+- 宏会直接修改 Word 文档内容和格式
+- 运行后通常不能可靠地通过 `Ctrl + Z` 完整撤回
+- 尤其是目录、分页、分节、页码、参考文献排序这类操作，建议一定在副本上先测试
+
+建议做法：
+
+1. 先复制一份论文文档副本。
+2. 在副本上运行宏。
+3. 检查结果无误后，再决定是否覆盖原文档。
 
 ## 最简单的使用方法
 
-如果你只想尽快用起来，只需要记住一个宏：
+大多数情况下，你只需要运行一个宏：
 
 `FormatThesisToSDUTCM`
 
@@ -25,9 +41,9 @@
 1. 打开你的 Word 文档。
 2. 按 `Alt + F11` 打开 VBA 编辑器。
 3. 在左侧项目窗口中选中当前文档或模板。
-4. 如果当前工程里还没有可用模块，在导航栏中选择“插入” -> “模块”。
+4. 如果当前工程里还没有可用模块，就右键项目，选择“插入” -> “模块”。
    如果你已经有现成模块，也可以直接把代码粘贴进去。
-5. 打开仓库中的 [format_macro.bas](/C:/Coding/ThesisFormatter/format_macro.bas)。
+5. 打开仓库中的 [`format_macro.bas`](./format_macro.bas)。
 6. 将其中内容复制到模块中。
 7. 如需长期保留宏，建议保存为 `.docm`。
    如果只是当前会话临时运行，不立即保存也可以。
@@ -92,9 +108,10 @@
 
 1. 先把论文内容基本写完。
 2. 确认标题样式尽量正确。
-3. 如果需要目录，保证文中已有目录域，或者保留单独一行“目录”两字。
-4. 运行 `FormatThesisToSDUTCM`。
-5. 检查目录、页码和参考文献是否符合你的具体要求。
+3. 如果需要目录，保证文中已有目录域，或者保留单独一行“目录”。
+4. 先备份文档。
+5. 运行 `FormatThesisToSDUTCM`。
+6. 检查目录、页码和参考文献是否符合你的具体要求。
 
 ## 常见问题
 
@@ -129,17 +146,25 @@
 
 ### 4. 这个宏可以反复运行吗？
 
-可以。
+可以，但仍建议先备份文档再运行。
 
-目前已经尽量按可重复运行的方式处理，正常情况下再次运行不会不断重复插入目录或页码结构。
+目前已经尽量按可重复运行的方式处理，正常情况下再次运行不会不断重复插入目录或页码结构；但由于 Word 文档结构差异较大，复杂文档仍建议先在副本上测试。
+
+### 5. 为什么运行后不能完整撤回？
+
+这是 Word 宏的常见限制之一。
+
+宏会批量修改格式、目录、分节、分页和页码，运行后通常不能像普通手动编辑那样可靠地使用 `Ctrl + Z` 完整撤销。
+
+因此请务必在运行前备份文档。
 
 ## 文件说明
 
-- [format_macro.bas](/C:/Coding/ThesisFormatter/format_macro.bas)
+- [`format_macro.bas`](./format_macro.bas)
   主宏文件
-- [FORMAT_SPEC.md](/C:/Coding/ThesisFormatter/FORMAT_SPEC.md)
+- [`FORMAT_SPEC.md`](./FORMAT_SPEC.md)
   格式目标说明
-- [MACRO_REFERENCE.md](/C:/Coding/ThesisFormatter/MACRO_REFERENCE.md)
+- [`MACRO_REFERENCE.md`](./MACRO_REFERENCE.md)
   宏与函数说明
-- [LICENSE](/C:/Coding/ThesisFormatter/LICENSE)
+- [`LICENSE`](./LICENSE)
   MIT 许可证
