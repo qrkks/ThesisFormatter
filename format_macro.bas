@@ -1003,6 +1003,28 @@ Private Sub ApplyPageNumbers(ByVal mode As Integer)
         Case Else
             Err.Raise vbObjectError + 1000, , "未知的页码模式。"
     End Select
+
+    RefreshTableOfContentsPageNumbers
+End Sub
+
+Private Sub RefreshTableOfContentsPageNumbers()
+    Dim toc As TableOfContents
+    Dim fld As Field
+
+    If ActiveDocument.TablesOfContents.Count > 0 Then
+        For Each toc In ActiveDocument.TablesOfContents
+            On Error Resume Next
+            toc.UpdatePageNumbers
+            On Error GoTo 0
+        Next toc
+        Exit Sub
+    End If
+
+    For Each fld In ActiveDocument.Fields
+        If fld.Type = wdFieldTOC Then
+            fld.Update
+        End If
+    Next fld
 End Sub
 
 Private Sub EnsureSectionBreakAfterTableOfContents()
