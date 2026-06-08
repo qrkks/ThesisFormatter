@@ -147,8 +147,9 @@
 默认流程：
 
 1. `FormatReferences`
-2. `SortReferences`
-3. `FormatReferenceEntries`
+2. `FormatReferenceEntries`
+
+虽然保留了历史名称 `ProcessReferencesWithSort`，当前默认流程已经不再调用 `SortReferences`。
 
 ### `FormatReferences`
 
@@ -161,6 +162,8 @@
 ### `SortReferences`
 
 对参考文献条目按字母顺序排序。
+
+当前总流程默认不调用它。这个过程会直接改写参考文献段落，使用前应先备份文档。
 
 ### `AutoNumberReferences`
 
@@ -271,4 +274,4 @@
 
 1. 目录后分节逻辑
 2. 页码幂等性
-3. 参考文献排序后的分页逻辑
+3. 参考文献标题识别和条目格式化

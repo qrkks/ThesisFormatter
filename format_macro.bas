@@ -482,7 +482,7 @@ Private Sub ApplyTOCTitleStyle(ByVal para As Paragraph)
             .Bold = True
             .Color = wdColorBlack
         End With
-        
+
         With para.Range.ParagraphFormat
             .Alignment = wdAlignParagraphCenter
             .FirstLineIndent = 0
@@ -639,8 +639,7 @@ Sub FormatReferences()
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         
         ' 查找参考文献标题
-        If txt = "参考文献" Or txt = "References" Or _
-           Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
+        If IsReferenceHeadingText(txt) Then
             ' 先设置样式，再格式化
             On Error Resume Next
             para.Style = ActiveDocument.Styles("标题 1")
@@ -690,8 +689,7 @@ Sub FormatReferenceEntries()
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         
         ' 检查是否到达参考文献部分
-        If txt = "参考文献" Or txt = "References" Or _
-           Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
+        If IsReferenceHeadingText(txt) Then
             foundReferences = True
             GoTo NextPara
         End If
@@ -730,8 +728,7 @@ Sub FormatReferenceEntries()
             End If
             
             ' 检查是否为参考文献条目（不是空行且不是标题，且不是其他章节标题）
-            If Len(txt) > 0 And txt <> "参考文献" And txt <> "References" And _
-               Left(txt, 5) <> "参考文献：" And Left(txt, 11) <> "References:" And _
+            If Len(txt) > 0 And Not IsReferenceHeadingText(txt) And _
                Left(txt, 3) <> "图 " And Left(txt, 3) <> "表 " And _
                Left(txt, 4) <> "Figure" And Left(txt, 4) <> "Table" And _
                Left(txt, 5) <> "致谢" And Left(txt, 5) <> "Acknowledgments" And _
@@ -783,8 +780,7 @@ Sub AutoNumberReferences()
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         
         ' 检查是否到达参考文献部分
-        If txt = "参考文献" Or txt = "References" Or _
-           Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
+        If IsReferenceHeadingText(txt) Then
             foundReferences = True
             GoTo NextPara2
         End If
@@ -798,8 +794,7 @@ Sub AutoNumberReferences()
             
             ' 检查是否为参考文献条目（不以数字开头，且不是标题）
             If Not IsNumeric(Left(txt, 1)) And Left(txt, 1) <> "[" And Left(txt, 1) <> "(" And _
-               txt <> "参考文献" And txt <> "References" And _
-               Left(txt, 5) <> "参考文献：" And Left(txt, 11) <> "References:" Then
+               Not IsReferenceHeadingText(txt) Then
                 
                 referenceCount = referenceCount + 1
                 newText = "[" & referenceCount & "] " & txt
@@ -817,6 +812,7 @@ End Sub
 
 ' 完整的参考文献处理宏（APA格式）
 Sub ProcessReferences()
+    NormalizeReferenceHeadingParagraphs
     ' 1. 格式化参考文献标题
     FormatReferences
     ' 2. 格式化参考文献条目
@@ -835,10 +831,7 @@ Sub SortReferences()
     Dim references() As String
     Dim referenceRanges() As Range
     Dim tempText As String
-    Dim tempRange As Range
     Dim j As Integer, k As Integer
-    Dim endPageRange As Range
-    Dim checkRange As Range
     
     foundReferences = False
     referenceCount = 0
@@ -851,8 +844,7 @@ Sub SortReferences()
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         
         ' 检查是否到达参考文献部分
-        If txt = "参考文献" Or txt = "References" Or _
-           Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
+        If IsReferenceHeadingText(txt) Then
             foundReferences = True
             GoTo NextParaSort
         End If
@@ -872,8 +864,7 @@ Sub SortReferences()
             End If
             
             ' 检查是否为参考文献条目
-            If Len(txt) > 0 And txt <> "参考文献" And txt <> "References" And _
-               Left(txt, 5) <> "参考文献：" And Left(txt, 11) <> "References:" And _
+            If Len(txt) > 0 And Not IsReferenceHeadingText(txt) And _
                Left(txt, 3) <> "图 " And Left(txt, 3) <> "表 " And _
                Left(txt, 4) <> "Figure" And Left(txt, 4) <> "Table" And _
                Left(txt, 5) <> "致谢" And Left(txt, 5) <> "Acknowledgments" And _
@@ -891,8 +882,10 @@ Sub SortReferences()
             End If
         End If
         
-NextParaSort:
+    NextParaSort:
     Next i
+
+    If referenceCount < 2 Then Exit Sub
     
     ' 第二步：按字母排序（不区分大小写，符合APA格式）
     For j = 0 To referenceCount - 2
@@ -902,83 +895,29 @@ NextParaSort:
                 tempText = references(j)
                 references(j) = references(k)
                 references(k) = tempText
-                
-                ' 交换范围
-                Set tempRange = referenceRanges(j)
-                Set referenceRanges(j) = referenceRanges(k)
-                Set referenceRanges(k) = tempRange
             End If
         Next k
     Next j
     
-    ' 第三步：重新排列段落
+    ' 第三步：原地替换段落文本，避免删除后重插导致条目丢失或并入标题段落
     If referenceCount > 0 Then
-        ' 删除所有参考文献条目
         For j = 0 To referenceCount - 1
-            referenceRanges(j).Delete
+            referenceRanges(j).Text = references(j) & vbCr
         Next j
-        
-        ' 找到参考文献标题位置
-        Dim insertRange As Range
-        For i = 1 To ActiveDocument.Paragraphs.Count
-            Set para = ActiveDocument.Paragraphs(i)
-            txt = Trim(Replace(para.Range.Text, vbCr, ""))
-            
-            If txt = "参考文献" Or txt = "References" Or _
-               Left(txt, 5) = "参考文献：" Or Left(txt, 11) = "References:" Then
-                Set insertRange = para.Range.Duplicate
-                insertRange.Collapse wdCollapseEnd
-                Exit For
-            End If
-        Next i
-        
-        ' 按排序后的顺序插入
-        For j = 0 To referenceCount - 1
-            insertRange.InsertAfter references(j) & vbCr
-            ' 确保插入的段落使用正文样式
-            Dim newPara As Paragraph
-            Set newPara = insertRange.Paragraphs(insertRange.Paragraphs.Count)
-            If Not newPara Is Nothing Then
-                On Error Resume Next
-                newPara.Style = ActiveDocument.Styles("正文文本")
-                If Err.Number <> 0 Then
-                    ' 如果正文文本样式不存在，尝试使用默认样式
-                    newPara.Style = ActiveDocument.Styles("Normal")
-                End If
-                On Error GoTo 0
-            End If
-        Next j
-        
-        ' 在参考文献部分结束后添加分页符
-        Dim lastRefPara As Paragraph
-        Set lastRefPara = insertRange.Paragraphs(insertRange.Paragraphs.Count)
-        If Not lastRefPara Is Nothing Then
-            Set endPageRange = lastRefPara.Range.Duplicate
-            endPageRange.Collapse wdCollapseEnd
-            If endPageRange.Start < ActiveDocument.Content.End Then
-                Set checkRange = ActiveDocument.Range(endPageRange.Start, endPageRange.Start + 1)
-                If checkRange.Text <> Chr(12) Then
-                    endPageRange.InsertBreak Type:=wdPageBreak
-                End If
-            Else
-                endPageRange.InsertBreak Type:=wdPageBreak
-            End If
-        End If
     End If
     
     ' MsgBox "参考文献排序完成！共排序 " & referenceCount & " 个条目。"
 End Sub
 
-' 完整的参考文献处理宏（包含排序）
+' 完整的参考文献处理宏
 Sub ProcessReferencesWithSort()
+    NormalizeReferenceHeadingParagraphs
     ' 1. 格式化参考文献标题
     FormatReferences
-    ' 2. 排序参考文献条目
-    SortReferences
-    ' 3. 格式化参考文献条目
+    ' 2. 格式化参考文献条目
     FormatReferenceEntries
     
-    ' MsgBox "参考文献处理完成（包含排序）！"
+    ' MsgBox "参考文献处理完成！"
 End Sub
 
 ' 对外入口：全文使用阿拉伯数字页码
@@ -1188,7 +1127,7 @@ Public Sub FormatThesisToSDUTCM()
                      "3. 正文格式化" & vbCrLf & _
                      "4. 摘要和关键词格式化" & vbCrLf & _
                      "5. 目录处理（已有目录则更新，否则按“目录”位置插入）" & vbCrLf & _
-                     "6. 参考文献格式化（包含排序）" & vbCrLf & _
+                     "6. 参考文献格式化" & vbCrLf & _
                      "7. 图片与图题处理" & vbCrLf & _
                      "8. 页码处理（目录前罗马数字，目录后阿拉伯数字）" & vbCrLf & vbCrLf & _
                      "是否继续？", vbYesNo + vbQuestion, "山东中医药大学论文格式化")
@@ -1289,6 +1228,71 @@ End Function
 Private Function ZhBodyStyleName() As String
     ZhBodyStyleName = ChrW(&H6B63) & ChrW(&H6587)
 End Function
+
+Private Function IsReferenceHeadingText(ByVal txt As String) As Boolean
+    Dim normalized As String
+
+    normalized = Trim(txt)
+    IsReferenceHeadingText = normalized = "参考文献" Or _
+                             normalized = "References" Or _
+                             Left(normalized, 5) = "参考文献：" Or _
+                             Left(normalized, 5) = "参考文献:" Or _
+                             Left(normalized, 11) = "References:" Or _
+                             Left(normalized, 11) = "References：" Or _
+                             Left(normalized, 5) = "参考文献 " Or _
+                             Left(normalized, 11) = "References "
+End Function
+
+Private Function GetReferenceHeadingLabel(ByVal txt As String) As String
+    Dim normalized As String
+
+    normalized = Trim(txt)
+
+    If Left(normalized, 11) = "References:" Or Left(normalized, 11) = "References " Or _
+       Left(normalized, 11) = "References：" Then
+        GetReferenceHeadingLabel = "References"
+    Else
+        GetReferenceHeadingLabel = "参考文献"
+    End If
+End Function
+
+Private Function GetReferenceHeadingRemainder(ByVal txt As String) As String
+    Dim normalized As String
+    Dim label As String
+
+    normalized = Trim(txt)
+    label = GetReferenceHeadingLabel(normalized)
+
+    If Left(normalized, Len(label)) <> label Then Exit Function
+
+    GetReferenceHeadingRemainder = Trim(Mid(normalized, Len(label) + 1))
+    If Left(GetReferenceHeadingRemainder, 1) = ":" Or Left(GetReferenceHeadingRemainder, 1) = "：" Then
+        GetReferenceHeadingRemainder = Trim(Mid(GetReferenceHeadingRemainder, 2))
+    End If
+End Function
+
+Private Sub NormalizeReferenceHeadingParagraphs()
+    Dim para As Paragraph
+    Dim txt As String
+    Dim headingLabel As String
+    Dim remainder As String
+    Dim insertRange As Range
+
+    For Each para In ActiveDocument.Paragraphs
+        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+        If IsReferenceHeadingText(txt) Then
+            remainder = GetReferenceHeadingRemainder(txt)
+            If Len(remainder) > 0 Then
+                headingLabel = GetReferenceHeadingLabel(txt)
+                para.Range.Text = headingLabel & vbCr
+
+                Set insertRange = ActiveDocument.Range(para.Range.End, para.Range.End)
+                insertRange.InsertAfter remainder & vbCr
+            End If
+            Exit Sub
+        End If
+    Next para
+End Sub
 
 Private Sub EnsurePageBreakBeforeParagraph(ByVal para As Paragraph)
     If para Is Nothing Then Exit Sub
