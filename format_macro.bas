@@ -1188,10 +1188,10 @@ Private Sub RunSDUTCMFormatting()
             FormatLevel2Paragraph para
         ElseIf IsHeadingLevelParagraph(para, 3) Then
             FormatLevel3Paragraph para
+        ElseIf IsCodeBlockParagraph(para) Then
+            FormatCompactParagraph para
         ElseIf para.Style = ZhBodyTextStyleName() Or para.Style = "Normal" Or para.Style = "First Paragraph" Or para.Style = ZhBodyStyleName() Then
             FormatBodyParagraph para
-        ElseIf para.Style = "Compact" Then
-            FormatCompactParagraph para
         End If
     Next i
     
@@ -1243,6 +1243,11 @@ Private Function IsHeadingLevelParagraph(ByVal para As Paragraph, ByVal level As
                               para.OutlineLevel = expectedOutlineLevel
 End Function
 
+Private Function IsCodeBlockParagraph(ByVal para As Paragraph) As Boolean
+    IsCodeBlockParagraph = para.Style = "Source Code" Or _
+                           para.Style = "Code"
+End Function
+
 ' Return the body-text style name: 正文文本
 Private Function ZhBodyTextStyleName() As String
     ZhBodyTextStyleName = ChrW(&H6B63) & ChrW(&H6587) & ChrW(&H6587) & ChrW(&H672C)
@@ -1261,10 +1266,12 @@ Private Sub ConfigureSDUTCMStyles()
     ConfigureHeadingStyleIfExists "Heading 1", 1
     ConfigureHeadingStyleIfExists "Heading 2", 2
     ConfigureHeadingStyleIfExists "Heading 3", 3
-    ConfigureBodyStyleIfExists ZhBodyTextStyleName()
-    ConfigureBodyStyleIfExists ZhBodyStyleName()
-    ConfigureBodyStyleIfExists "Normal"
-    ConfigureBodyStyleIfExists "First Paragraph"
+    ConfigureBodyStyleIfExists ZhBodyTextStyleName(), 24
+    ConfigureBodyStyleIfExists ZhBodyStyleName(), 24
+    ConfigureBodyStyleIfExists "Normal", 0
+    ConfigureBodyStyleIfExists "First Paragraph", 0
+    ConfigureCodeBlockStyleIfExists "Source Code"
+    ConfigureCodeBlockStyleIfExists "Code"
     ConfigureTOCTitleStyle
 End Sub
 
@@ -1280,6 +1287,7 @@ Private Sub ConfigureTitleStyleIfExists(ByVal styleName As String)
     Set sty = GetStyleByName(styleName)
     If sty Is Nothing Then Exit Sub
 
+    On Error Resume Next
     With sty.Font
         .NameFarEast = "黑体"
         .Name = "黑体"
@@ -1295,6 +1303,7 @@ Private Sub ConfigureTitleStyleIfExists(ByVal styleName As String)
         .RightIndent = 0
         .LineSpacingRule = wdLineSpace1pt5
     End With
+    On Error GoTo 0
 End Sub
 
 Private Sub ConfigureHeadingStyleIfExists(ByVal styleName As String, ByVal level As Integer)
@@ -1303,6 +1312,7 @@ Private Sub ConfigureHeadingStyleIfExists(ByVal styleName As String, ByVal level
     Set sty = GetStyleByName(styleName)
     If sty Is Nothing Then Exit Sub
 
+    On Error Resume Next
     With sty.Font
         .NameFarEast = "宋体"
         .Name = "Times New Roman"
@@ -1328,24 +1338,17 @@ Private Sub ConfigureHeadingStyleIfExists(ByVal styleName As String, ByVal level
         .LeftIndent = 0
         .RightIndent = 0
         .LineSpacingRule = wdLineSpace1pt5
-        .OutlineLevel = wdOutlineLevelBodyText
-        Select Case level
-            Case 1
-                .OutlineLevel = wdOutlineLevel1
-            Case 2
-                .OutlineLevel = wdOutlineLevel2
-            Case 3
-                .OutlineLevel = wdOutlineLevel3
-        End Select
     End With
+    On Error GoTo 0
 End Sub
 
-Private Sub ConfigureBodyStyleIfExists(ByVal styleName As String)
+Private Sub ConfigureBodyStyleIfExists(ByVal styleName As String, ByVal firstLineIndent As Single)
     Dim sty As Style
 
     Set sty = GetStyleByName(styleName)
     If sty Is Nothing Then Exit Sub
 
+    On Error Resume Next
     With sty.Font
         .NameFarEast = "宋体"
         .Name = "Times New Roman"
@@ -1356,12 +1359,28 @@ Private Sub ConfigureBodyStyleIfExists(ByVal styleName As String)
 
     With sty.ParagraphFormat
         .Alignment = wdAlignParagraphLeft
-        .FirstLineIndent = 24
+        .FirstLineIndent = firstLineIndent
         .LeftIndent = 0
         .RightIndent = 0
         .LineSpacingRule = wdLineSpace1pt5
-        .OutlineLevel = wdOutlineLevelBodyText
     End With
+    On Error GoTo 0
+End Sub
+
+Private Sub ConfigureCodeBlockStyleIfExists(ByVal styleName As String)
+    Dim sty As Style
+
+    Set sty = GetStyleByName(styleName)
+    If sty Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    With sty.ParagraphFormat
+        .Alignment = wdAlignParagraphLeft
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+    End With
+    On Error GoTo 0
 End Sub
 
 Private Function IsReferenceHeadingText(ByVal txt As String) As Boolean
@@ -1515,13 +1534,14 @@ End Sub
 
 ' 格式化单个Compact段落
 Sub FormatCompactParagraph(para As Paragraph)
-    With para.Range
-        .Font.NameFarEast = "宋体"
-        .Font.Name = "Times New Roman"
-        .Font.Size = 12 ' 小四
-        .Font.Bold = False
-        .Font.Color = wdColorBlack
+    On Error Resume Next
+    With para.Range.ParagraphFormat
+        .Alignment = wdAlignParagraphLeft
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
     End With
+    On Error GoTo 0
 End Sub
 
 ' 表格格式化：居中三线表
@@ -1539,10 +1559,6 @@ Private Sub ApplyThreeLineTableStyle(ByVal tbl As Table)
     If tbl Is Nothing Then Exit Sub
     If tbl.Rows.Count = 0 Then Exit Sub
 
-    tbl.Rows.Alignment = wdAlignRowCenter
-    tbl.Range.ParagraphFormat.Alignment = wdAlignParagraphCenter
-    tbl.Range.Cells.VerticalAlignment = wdCellAlignVerticalCenter
-
     With tbl.Range.Font
         .NameFarEast = "宋体"
         .Name = "Times New Roman"
@@ -1550,6 +1566,19 @@ Private Sub ApplyThreeLineTableStyle(ByVal tbl As Table)
         .Bold = False
         .Color = wdColorBlack
     End With
+
+    With tbl.Range.ParagraphFormat
+        .Alignment = wdAlignParagraphCenter
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+    End With
+
+    tbl.Range.Cells.VerticalAlignment = wdCellAlignVerticalCenter
+    tbl.AllowAutoFit = True
+    tbl.PreferredWidthType = wdPreferredWidthAuto
+    tbl.AutoFitBehavior wdAutoFitContent
+    tbl.Rows.Alignment = wdAlignRowCenter
 
     For Each border In tbl.Borders
         border.LineStyle = wdLineStyleNone

@@ -53,7 +53,7 @@
 
 - 配置标题、正文和目录标题等 Word 样式定义
 - 对全文段落进行一次遍历
-- 按样式和大纲级别分别处理题目、一级标题、二级标题、三级标题、正文、Compact 段落
+- 按样式和大纲级别分别处理题目、一级标题、二级标题、三级标题、正文和代码块段落
 - 串联目录、参考文献、图片、页码等模块
 
 ## 3. 标题与正文相关
@@ -77,11 +77,15 @@
 - `FormatLevel2Paragraph`
 - `FormatLevel3Paragraph`
 - `FormatBodyParagraph`
-
-当前流程会先配置 Word 样式定义，再用这些单段处理宏覆盖已有段落格式。
 - `FormatCompactParagraph`
 
+当前流程会先配置 Word 样式定义，再用这些单段处理宏覆盖已有段落格式。
+
 它们由 `RunSDUTCMFormatting` 调用。
+
+`FormatCompactParagraph` 用于处理 Pandoc 常见的 `Source Code`、`Code` 代码块样式，只清理缩进并保留原有代码高亮。
+
+`Compact` 不再作为代码块处理，因为 Pandoc 也可能把紧凑列表标记为 `Compact`。
 
 ## 4. 摘要与关键词
 
