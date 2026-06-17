@@ -190,5 +190,4 @@
 
 欢迎：
 
-- 提 [issue](https://github.com/qrkks/ThesisFormatter/issues)
-- 或直接联系我
+- 提 [issue](https://github.com/qrkks/ThesisFormatter/issues) 或直接联系我
