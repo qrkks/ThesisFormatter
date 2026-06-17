@@ -1171,8 +1171,11 @@ Private Sub RunSDUTCMFormatting()
     
     ' 1. Page setup
     SetPageAndBodyFormat
+
+    ' 2. Configure Word styles first, then apply direct formatting as fallback
+    ConfigureSDUTCMStyles
     
-    ' 2. Apply base paragraph formatting in one pass
+    ' 3. Apply base paragraph formatting in one pass
     For i = 1 To totalParagraphs
         Set para = ActiveDocument.Paragraphs(i)
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
@@ -1192,22 +1195,22 @@ Private Sub RunSDUTCMFormatting()
         End If
     Next i
     
-    ' 3. Abstract and keywords
+    ' 4. Abstract and keywords
     MergeAndFormatAbstract
     
-    ' 4. Table of contents
+    ' 5. Table of contents
     ProcessTableOfContents
     
-    ' 5. References
+    ' 6. References
     ProcessReferencesWithSort
     
-    ' 6. Tables
+    ' 7. Tables
     ProcessTables
 
-    ' 7. Images
+    ' 8. Images
     ProcessImages
     
-    ' 8. Mixed page numbers by TOC
+    ' 9. Mixed page numbers by TOC
     ApplyMixedPageNumbersByTOC
 End Sub
 
@@ -1249,6 +1252,117 @@ End Function
 Private Function ZhBodyStyleName() As String
     ZhBodyStyleName = ChrW(&H6B63) & ChrW(&H6587)
 End Function
+
+Private Sub ConfigureSDUTCMStyles()
+    ConfigureTitleStyleIfExists ZhTitleStyleName()
+    ConfigureHeadingStyleIfExists ZhHeadingStyleName(1), 1
+    ConfigureHeadingStyleIfExists ZhHeadingStyleName(2), 2
+    ConfigureHeadingStyleIfExists ZhHeadingStyleName(3), 3
+    ConfigureHeadingStyleIfExists "Heading 1", 1
+    ConfigureHeadingStyleIfExists "Heading 2", 2
+    ConfigureHeadingStyleIfExists "Heading 3", 3
+    ConfigureBodyStyleIfExists ZhBodyTextStyleName()
+    ConfigureBodyStyleIfExists ZhBodyStyleName()
+    ConfigureBodyStyleIfExists "Normal"
+    ConfigureBodyStyleIfExists "First Paragraph"
+    ConfigureTOCTitleStyle
+End Sub
+
+Private Function GetStyleByName(ByVal styleName As String) As Style
+    On Error Resume Next
+    Set GetStyleByName = ActiveDocument.Styles(styleName)
+    On Error GoTo 0
+End Function
+
+Private Sub ConfigureTitleStyleIfExists(ByVal styleName As String)
+    Dim sty As Style
+
+    Set sty = GetStyleByName(styleName)
+    If sty Is Nothing Then Exit Sub
+
+    With sty.Font
+        .NameFarEast = "黑体"
+        .Name = "黑体"
+        .Size = 18
+        .Bold = True
+        .Color = wdColorBlack
+    End With
+
+    With sty.ParagraphFormat
+        .Alignment = wdAlignParagraphCenter
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+        .LineSpacingRule = wdLineSpace1pt5
+    End With
+End Sub
+
+Private Sub ConfigureHeadingStyleIfExists(ByVal styleName As String, ByVal level As Integer)
+    Dim sty As Style
+
+    Set sty = GetStyleByName(styleName)
+    If sty Is Nothing Then Exit Sub
+
+    With sty.Font
+        .NameFarEast = "宋体"
+        .Name = "Times New Roman"
+        .Bold = True
+        .Color = wdColorBlack
+        Select Case level
+            Case 1
+                .Size = 16
+            Case 2
+                .Size = 14
+            Case 3
+                .Size = 12
+        End Select
+    End With
+
+    With sty.ParagraphFormat
+        If level = 1 Then
+            .Alignment = wdAlignParagraphCenter
+        Else
+            .Alignment = wdAlignParagraphLeft
+        End If
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+        .LineSpacingRule = wdLineSpace1pt5
+        .OutlineLevel = wdOutlineLevelBodyText
+        Select Case level
+            Case 1
+                .OutlineLevel = wdOutlineLevel1
+            Case 2
+                .OutlineLevel = wdOutlineLevel2
+            Case 3
+                .OutlineLevel = wdOutlineLevel3
+        End Select
+    End With
+End Sub
+
+Private Sub ConfigureBodyStyleIfExists(ByVal styleName As String)
+    Dim sty As Style
+
+    Set sty = GetStyleByName(styleName)
+    If sty Is Nothing Then Exit Sub
+
+    With sty.Font
+        .NameFarEast = "宋体"
+        .Name = "Times New Roman"
+        .Size = 12
+        .Bold = False
+        .Color = wdColorBlack
+    End With
+
+    With sty.ParagraphFormat
+        .Alignment = wdAlignParagraphLeft
+        .FirstLineIndent = 24
+        .LeftIndent = 0
+        .RightIndent = 0
+        .LineSpacingRule = wdLineSpace1pt5
+        .OutlineLevel = wdOutlineLevelBodyText
+    End With
+End Sub
 
 Private Function IsReferenceHeadingText(ByVal txt As String) As Boolean
     Dim normalized As String

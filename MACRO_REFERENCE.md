@@ -51,8 +51,9 @@
 
 主要职责：
 
+- 配置标题、正文和目录标题等 Word 样式定义
 - 对全文段落进行一次遍历
-- 按样式分别处理题目、一级标题、二级标题、三级标题、正文、Compact 段落
+- 按样式和大纲级别分别处理题目、一级标题、二级标题、三级标题、正文、Compact 段落
 - 串联目录、参考文献、图片、页码等模块
 
 ## 3. 标题与正文相关
@@ -76,6 +77,8 @@
 - `FormatLevel2Paragraph`
 - `FormatLevel3Paragraph`
 - `FormatBodyParagraph`
+
+当前流程会先配置 Word 样式定义，再用这些单段处理宏覆盖已有段落格式。
 - `FormatCompactParagraph`
 
 它们由 `RunSDUTCMFormatting` 调用。
