@@ -678,8 +678,6 @@ Sub FormatReferenceEntries()
     Dim i As Integer
     Dim foundReferences As Boolean
     Dim referenceCount As Integer
-    Dim endRange As Range
-    Dim checkRange As Range
     
     foundReferences = False
     referenceCount = 0
@@ -705,17 +703,9 @@ Sub FormatReferenceEntries()
         End If
         
         ' 通用判断：检查是否遇到下一个标题样式（结束参考文献部分）
-        If foundReferences And (para.Style = "标题 1" Or para.Style = "标题 2" Or para.Style = "标题 3" Or _
-           para.Style = "Heading 1" Or para.Style = "Heading 2" Or para.Style = "Heading 3") Then
-            ' 在参考文献部分结束后添加分页符
-            Set endRange = para.Range.Duplicate
-            endRange.Collapse wdCollapseStart
-            If endRange.Start > 0 Then
-                Set checkRange = ActiveDocument.Range(endRange.Start - 1, endRange.Start)
-                If checkRange.Text <> Chr(12) Then
-                    endRange.InsertBreak Type:=wdPageBreak
-                End If
-            End If
+        If foundReferences And (IsHeadingLevelParagraph(para, 1) Or _
+           IsHeadingLevelParagraph(para, 2) Or IsHeadingLevelParagraph(para, 3)) Then
+            EnsurePageBreakBeforeParagraph para
             foundReferences = False
             GoTo NextPara
         End If
@@ -734,8 +724,8 @@ Sub FormatReferenceEntries()
                Left(txt, 5) <> "致谢" And Left(txt, 5) <> "Acknowledgments" And _
                Left(txt, 6) <> "作者简介" And Left(txt, 6) <> "Author Bio" And _
                txt <> "附录" And txt <> "Appendix" And _
-               para.Style <> "标题 1" And para.Style <> "标题 2" And para.Style <> "标题 3" And _
-               para.Style <> "Heading 1" And para.Style <> "Heading 2" And para.Style <> "Heading 3" Then
+               Not IsHeadingLevelParagraph(para, 1) And _
+               Not IsHeadingLevelParagraph(para, 2) And Not IsHeadingLevelParagraph(para, 3) Then
                 referenceCount = referenceCount + 1
                 
                 ' 先设置段落格式（悬挂缩进）
@@ -944,6 +934,13 @@ Private Sub ApplyPageNumbers(ByVal mode As Integer)
     End Select
 
     RefreshTableOfContentsPageNumbers
+    ExitHeaderFooterView
+End Sub
+
+Private Sub ExitHeaderFooterView()
+    On Error Resume Next
+    ActiveWindow.View.SeekView = wdSeekMainDocument
+    On Error GoTo 0
 End Sub
 
 Private Sub RefreshTableOfContentsPageNumbers()
@@ -1128,8 +1125,9 @@ Public Sub FormatThesisToSDUTCM()
                      "4. 摘要和关键词格式化" & vbCrLf & _
                      "5. 目录处理（已有目录则更新，否则按“目录”位置插入）" & vbCrLf & _
                      "6. 参考文献格式化" & vbCrLf & _
-                     "7. 图片与图题处理" & vbCrLf & _
-                     "8. 页码处理（目录前罗马数字，目录后阿拉伯数字）" & vbCrLf & vbCrLf & _
+                     "7. 表格处理（三线表）" & vbCrLf & _
+                     "8. 图片与图题处理" & vbCrLf & _
+                     "9. 页码处理（目录前罗马数字，目录后阿拉伯数字）" & vbCrLf & vbCrLf & _
                      "是否继续？", vbYesNo + vbQuestion, "山东中医药大学论文格式化")
     
     If response = vbNo Then
@@ -1158,6 +1156,7 @@ ErrorHandler:
 
 CleanUp:
     ' 恢复设置
+    ExitHeaderFooterView
     Application.ScreenUpdating = True
 End Sub
 
@@ -1180,11 +1179,11 @@ Private Sub RunSDUTCMFormatting()
         
         If para.Style = ZhTitleStyleName() Then
             FormatTitleParagraph para
-        ElseIf para.Style = "Heading 1" Or para.Style = ZhHeadingStyleName(1) Then
+        ElseIf IsHeadingLevelParagraph(para, 1) Then
             FormatLevel1Paragraph para
-        ElseIf para.Style = "Heading 2" Or para.Style = ZhHeadingStyleName(2) Then
+        ElseIf IsHeadingLevelParagraph(para, 2) Then
             FormatLevel2Paragraph para
-        ElseIf para.Style = "Heading 3" Or para.Style = ZhHeadingStyleName(3) Then
+        ElseIf IsHeadingLevelParagraph(para, 3) Then
             FormatLevel3Paragraph para
         ElseIf para.Style = ZhBodyTextStyleName() Or para.Style = "Normal" Or para.Style = "First Paragraph" Or para.Style = ZhBodyStyleName() Then
             FormatBodyParagraph para
@@ -1202,10 +1201,13 @@ Private Sub RunSDUTCMFormatting()
     ' 5. References
     ProcessReferencesWithSort
     
-    ' 6. Images
+    ' 6. Tables
+    ProcessTables
+
+    ' 7. Images
     ProcessImages
     
-    ' 7. Mixed page numbers by TOC
+    ' 8. Mixed page numbers by TOC
     ApplyMixedPageNumbersByTOC
 End Sub
 
@@ -1217,6 +1219,25 @@ End Function
 ' Return the localized Word heading style name: 标题 1/2/3
 Private Function ZhHeadingStyleName(level As Integer) As String
     ZhHeadingStyleName = ZhTitleStyleName() & " " & CStr(level)
+End Function
+
+Private Function IsHeadingLevelParagraph(ByVal para As Paragraph, ByVal level As Integer) As Boolean
+    Dim expectedOutlineLevel As WdOutlineLevel
+
+    Select Case level
+        Case 1
+            expectedOutlineLevel = wdOutlineLevel1
+        Case 2
+            expectedOutlineLevel = wdOutlineLevel2
+        Case 3
+            expectedOutlineLevel = wdOutlineLevel3
+        Case Else
+            Exit Function
+    End Select
+
+    IsHeadingLevelParagraph = para.Style = "Heading " & CStr(level) Or _
+                              para.Style = ZhHeadingStyleName(level) Or _
+                              para.OutlineLevel = expectedOutlineLevel
 End Function
 
 ' Return the body-text style name: 正文文本
@@ -1241,6 +1262,23 @@ Private Function IsReferenceHeadingText(ByVal txt As String) As Boolean
                              Left(normalized, 11) = "References：" Or _
                              Left(normalized, 5) = "参考文献 " Or _
                              Left(normalized, 11) = "References "
+End Function
+
+Private Function NormalizeSpacing(ByVal txt As String) As String
+    NormalizeSpacing = Replace(txt, Chr(9), " ")
+    NormalizeSpacing = Replace(NormalizeSpacing, Chr(160), " ")
+    NormalizeSpacing = Replace(NormalizeSpacing, ChrW(&H3000), " ")
+    NormalizeSpacing = Trim(NormalizeSpacing)
+End Function
+
+Private Function IsImageCaptionText(ByVal txt As String) As Boolean
+    Dim normalized As String
+
+    normalized = NormalizeSpacing(txt)
+    IsImageCaptionText = normalized = "图" Or _
+                         Left(normalized, 2) = "图 " Or _
+                         Left(normalized, 6) = "Figure" Or _
+                         Left(normalized, 7) = "Figure "
 End Function
 
 Private Function GetReferenceHeadingLabel(ByVal txt As String) As String
@@ -1372,6 +1410,56 @@ Sub FormatCompactParagraph(para As Paragraph)
     End With
 End Sub
 
+' 表格格式化：居中三线表
+Sub ProcessTables()
+    Dim tbl As Table
+
+    For Each tbl In ActiveDocument.Tables
+        ApplyThreeLineTableStyle tbl
+    Next tbl
+End Sub
+
+Private Sub ApplyThreeLineTableStyle(ByVal tbl As Table)
+    Dim border As Border
+
+    If tbl Is Nothing Then Exit Sub
+    If tbl.Rows.Count = 0 Then Exit Sub
+
+    tbl.Rows.Alignment = wdAlignRowCenter
+    tbl.Range.ParagraphFormat.Alignment = wdAlignParagraphCenter
+    tbl.Range.Cells.VerticalAlignment = wdCellAlignVerticalCenter
+
+    With tbl.Range.Font
+        .NameFarEast = "宋体"
+        .Name = "Times New Roman"
+        .Size = 10.5
+        .Bold = False
+        .Color = wdColorBlack
+    End With
+
+    For Each border In tbl.Borders
+        border.LineStyle = wdLineStyleNone
+    Next border
+
+    With tbl.Borders(wdBorderTop)
+        .LineStyle = wdLineStyleSingle
+        .LineWidth = wdLineWidth150pt
+        .Color = wdColorBlack
+    End With
+
+    With tbl.Rows(1).Borders(wdBorderBottom)
+        .LineStyle = wdLineStyleSingle
+        .LineWidth = wdLineWidth075pt
+        .Color = wdColorBlack
+    End With
+
+    With tbl.Borders(wdBorderBottom)
+        .LineStyle = wdLineStyleSingle
+        .LineWidth = wdLineWidth150pt
+        .Color = wdColorBlack
+    End With
+End Sub
+
 ' 图片居中格式化宏
 Sub FormatImages()
     Dim shp As Shape
@@ -1417,14 +1505,14 @@ Sub FormatImageCaptions()
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         
         ' 查找图片标题（以"图"或"Figure"开头）
-        If Left(txt, 2) = "图 " Or Left(txt, 7) = "Figure " Or _
-           Left(txt, 3) = "图 " Or Left(txt, 8) = "Figure " Then
+        If IsImageCaptionText(txt) Then
             ' 格式化图片标题
             With para.Range.Font
                 .NameFarEast = "宋体"
                 .Name = "宋体"
                 .Size = 12 ' 小四
                 .Bold = False
+                .Italic = False
                 .Color = wdColorBlack
             End With
             With para.Range.ParagraphFormat
