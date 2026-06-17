@@ -698,6 +698,7 @@ Sub FormatReferenceEntries()
            Left(txt, 4) = "Figure" Or Left(txt, 4) = "Table" Or _
            Left(txt, 5) = "致谢" Or Left(txt, 5) = "Acknowledgments" Or _
            Left(txt, 6) = "作者简介" Or Left(txt, 6) = "Author Bio") Then
+            EnsurePageBreakBeforeParagraph para
             foundReferences = False
             GoTo NextPara
         End If
@@ -736,14 +737,8 @@ Sub FormatReferenceEntries()
                     .LineSpacingRule = wdLineSpace1pt5
                 End With
                 
-                ' 再设置字体格式
-                With para.Range.Font
-                    .NameFarEast = "宋体"
-                    .Name = "Times New Roman"
-                    .Size = 12 ' 小四
-                    .Bold = False
-                    .Color = wdColorBlack
-                End With
+                ' 再设置字体格式，保留原有的字符级斜体
+                ApplyRangeFontPreservingItalic para.Range, "宋体", "Times New Roman", 12, False
             End If
         End If
         
@@ -1520,15 +1515,12 @@ End Sub
 
 ' 格式化单个正文段落
 Sub FormatBodyParagraph(para As Paragraph)
-    With para.Range
-        .Font.NameFarEast = "宋体"
-        .Font.Name = "Times New Roman"
-        .Font.Size = 12 ' 小四
-        .Font.Bold = False
-        .Font.Color = wdColorBlack
-        .ParagraphFormat.Alignment = wdAlignParagraphLeft ' 左对齐
-        .ParagraphFormat.FirstLineIndent = 24 ' 首行缩进两字符
-        .ParagraphFormat.LineSpacingRule = wdLineSpace1pt5
+    ApplyRangeFontPreservingItalic para.Range, "宋体", "Times New Roman", 12, False
+
+    With para.Range.ParagraphFormat
+        .Alignment = wdAlignParagraphLeft ' 左对齐
+        .FirstLineIndent = 24 ' 首行缩进两字符
+        .LineSpacingRule = wdLineSpace1pt5
     End With
 End Sub
 
@@ -1542,6 +1534,34 @@ Sub FormatCompactParagraph(para As Paragraph)
         .RightIndent = 0
     End With
     On Error GoTo 0
+End Sub
+
+Private Sub ApplyRangeFontPreservingItalic(ByVal sourceRange As Range, ByVal eastAsianFont As String, ByVal latinFont As String, ByVal fontSize As Single, ByVal isBold As Boolean)
+    Dim contentRange As Range
+    Dim charRange As Range
+    Dim wasItalic As Long
+    Dim wasColor As Long
+
+    If sourceRange Is Nothing Then Exit Sub
+
+    Set contentRange = sourceRange.Duplicate
+    If contentRange.End > contentRange.Start Then
+        contentRange.End = contentRange.End - 1
+    End If
+
+    For Each charRange In contentRange.Characters
+        wasItalic = charRange.Font.Italic
+        wasColor = charRange.Font.Color
+        With charRange.Font
+            .NameFarEast = eastAsianFont
+            .Name = latinFont
+            .Size = fontSize
+            .Bold = isBold
+            .Color = wdColorBlack
+            .Italic = wasItalic
+            .Color = wasColor
+        End With
+    Next charRange
 End Sub
 
 ' 表格格式化：居中三线表
