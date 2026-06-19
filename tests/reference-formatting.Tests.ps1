@@ -62,7 +62,7 @@ foreach ($process in @($processReferences, $processReferencesWithSort)) {
 
     Assert-NotContains `
         -Text $process `
-        -Pattern "NormalizeReferenceHeadingParagraphs|FormatReferences|FormatReferenceEntries" `
+        -Pattern "\b(?:NormalizeReferenceHeadingParagraphs|FormatReferences|FormatReferenceEntries)\b" `
         -Message "Complete reference processing should not chain legacy full-document passes."
 }
 

@@ -797,12 +797,7 @@ End Sub
 
 ' 完整的参考文献处理宏（APA格式）
 Sub ProcessReferences()
-    NormalizeReferenceHeadingParagraphs
-    ' 1. 格式化参考文献标题
-    FormatReferences
-    ' 2. 格式化参考文献条目
-    FormatReferenceEntries
-    
+    FormatReferenceSection
     ' MsgBox "参考文献处理完成！"
 End Sub
 
@@ -896,12 +891,7 @@ End Sub
 
 ' 完整的参考文献处理宏
 Sub ProcessReferencesWithSort()
-    NormalizeReferenceHeadingParagraphs
-    ' 1. 格式化参考文献标题
-    FormatReferences
-    ' 2. 格式化参考文献条目
-    FormatReferenceEntries
-    
+    FormatReferenceSection
     ' MsgBox "参考文献处理完成！"
 End Sub
 
@@ -1458,6 +1448,124 @@ Private Sub NormalizeReferenceHeadingParagraphs()
             Exit Sub
         End If
     Next para
+End Sub
+
+Private Sub FormatReferenceSection()
+    Dim headingPara As Paragraph
+    Dim para As Paragraph
+    Dim searchRange As Range
+    Dim entriesRange As Range
+    Dim insertRange As Range
+    Dim txt As String
+    Dim headingLabel As String
+    Dim remainder As String
+    Dim entriesStart As Long
+    Dim entriesEnd As Long
+
+    Set headingPara = FindReferenceHeadingParagraph()
+    If headingPara Is Nothing Then Exit Sub
+
+    txt = Trim(Replace(headingPara.Range.Text, vbCr, ""))
+    remainder = GetReferenceHeadingRemainder(txt)
+    If Len(remainder) > 0 Then
+        headingLabel = GetReferenceHeadingLabel(txt)
+        headingPara.Range.Text = headingLabel & vbCr
+        Set insertRange = ActiveDocument.Range(headingPara.Range.End, headingPara.Range.End)
+        insertRange.InsertAfter remainder & vbCr
+    End If
+
+    FormatReferenceHeadingParagraph headingPara
+
+    entriesStart = headingPara.Range.End
+    entriesEnd = ActiveDocument.Content.End
+    Set searchRange = ActiveDocument.Range(entriesStart, entriesEnd)
+
+    For Each para In searchRange.Paragraphs
+        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+        If IsReferenceSectionEndParagraph(para, txt) Then
+            entriesEnd = para.Range.Start
+            EnsurePageBreakBeforeParagraph para
+            Exit For
+        End If
+    Next para
+
+    If entriesEnd <= entriesStart Then Exit Sub
+
+    Set entriesRange = ActiveDocument.Range(entriesStart, entriesEnd)
+    ApplyReferenceEntriesFormat entriesRange
+End Sub
+
+Private Function FindReferenceHeadingParagraph() As Paragraph
+    Dim para As Paragraph
+    Dim txt As String
+
+    For Each para In ActiveDocument.Paragraphs
+        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+        If IsReferenceHeadingText(txt) Then
+            Set FindReferenceHeadingParagraph = para
+            Exit Function
+        End If
+    Next para
+End Function
+
+Private Function IsReferenceSectionEndParagraph(ByVal para As Paragraph, ByVal txt As String) As Boolean
+    If txt = "附录" Or txt = "Appendix" Or _
+       Left(txt, 2) = "图 " Or Left(txt, 2) = "表 " Or _
+       Left(txt, Len("Figure")) = "Figure" Or Left(txt, Len("Table")) = "Table" Or _
+       Left(txt, Len("致谢")) = "致谢" Or Left(txt, Len("Acknowledgments")) = "Acknowledgments" Or _
+       Left(txt, Len("作者简介")) = "作者简介" Or Left(txt, Len("Author Bio")) = "Author Bio" Then
+        IsReferenceSectionEndParagraph = True
+        Exit Function
+    End If
+
+    IsReferenceSectionEndParagraph = IsHeadingLevelParagraph(para, 1) Or _
+                                     IsHeadingLevelParagraph(para, 2) Or _
+                                     IsHeadingLevelParagraph(para, 3)
+End Function
+
+Private Sub FormatReferenceHeadingParagraph(ByVal para As Paragraph)
+    On Error Resume Next
+    para.Style = ActiveDocument.Styles("标题 1")
+    If Err.Number <> 0 Then
+        Err.Clear
+        para.Style = ActiveDocument.Styles("Heading 1")
+    End If
+    On Error GoTo 0
+
+    With para.Range.Font
+        .NameFarEast = "宋体"
+        .Name = "宋体"
+        .Size = 18
+        .Bold = True
+        .Color = wdColorBlack
+    End With
+
+    With para.Range.ParagraphFormat
+        .Alignment = wdAlignParagraphCenter
+        .FirstLineIndent = 0
+        .LeftIndent = 0
+        .RightIndent = 0
+    End With
+
+    EnsurePageBreakBeforeParagraph para
+End Sub
+
+Private Sub ApplyReferenceEntriesFormat(ByVal entriesRange As Range)
+    If entriesRange Is Nothing Then Exit Sub
+
+    With entriesRange.ParagraphFormat
+        .Alignment = wdAlignParagraphLeft
+        .FirstLineIndent = -36
+        .LeftIndent = 36
+        .LineSpacingRule = wdLineSpace1pt5
+    End With
+
+    With entriesRange.Font
+        .NameFarEast = "宋体"
+        .Name = "Times New Roman"
+        .Size = 12
+        .Bold = False
+    End With
 End Sub
 
 Private Sub EnsurePageBreakBeforeParagraph(ByVal para As Paragraph)
