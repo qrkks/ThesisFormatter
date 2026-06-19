@@ -1537,31 +1537,14 @@ Sub FormatCompactParagraph(para As Paragraph)
 End Sub
 
 Private Sub ApplyRangeFontPreservingItalic(ByVal sourceRange As Range, ByVal eastAsianFont As String, ByVal latinFont As String, ByVal fontSize As Single, ByVal isBold As Boolean)
-    Dim contentRange As Range
-    Dim charRange As Range
-    Dim wasItalic As Long
-    Dim wasColor As Long
-
     If sourceRange Is Nothing Then Exit Sub
 
-    Set contentRange = sourceRange.Duplicate
-    If contentRange.End > contentRange.Start Then
-        contentRange.End = contentRange.End - 1
-    End If
-
-    For Each charRange In contentRange.Characters
-        wasItalic = charRange.Font.Italic
-        wasColor = charRange.Font.Color
-        With charRange.Font
-            .NameFarEast = eastAsianFont
-            .Name = latinFont
-            .Size = fontSize
-            .Bold = isBold
-            .Color = wdColorBlack
-            .Italic = wasItalic
-            .Color = wasColor
-        End With
-    Next charRange
+    With sourceRange.Font
+        .NameFarEast = eastAsianFont
+        .Name = latinFont
+        .Size = fontSize
+        .Bold = isBold
+    End With
 End Sub
 
 ' 表格格式化：居中三线表
