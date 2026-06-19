@@ -49,6 +49,47 @@ function Assert-NotContains {
 $fontHelper = Get-SubBody "ApplyRangeFontPreservingItalic"
 $bodyFormatter = Get-SubBody "FormatBodyParagraph"
 $referenceFormatter = Get-SubBody "FormatReferenceEntries"
+$processReferences = Get-SubBody "ProcessReferences"
+$processReferencesWithSort = Get-SubBody "ProcessReferencesWithSort"
+$optimizedFormatter = Get-SubBody "FormatReferenceSection"
+$rangeFormatter = Get-SubBody "ApplyReferenceEntriesFormat"
+
+foreach ($process in @($processReferences, $processReferencesWithSort)) {
+    Assert-Contains `
+        -Text $process `
+        -Pattern "FormatReferenceSection" `
+        -Message "Complete reference processing should use the bounded reference-section formatter."
+
+    Assert-NotContains `
+        -Text $process `
+        -Pattern "NormalizeReferenceHeadingParagraphs|FormatReferences|FormatReferenceEntries" `
+        -Message "Complete reference processing should not chain legacy full-document passes."
+}
+
+Assert-Contains `
+    -Text $optimizedFormatter `
+    -Pattern "For\s+Each\s+para\s+In\s+searchRange\.Paragraphs" `
+    -Message "Reference boundary detection should enumerate only the range after the heading."
+
+Assert-NotContains `
+    -Text $optimizedFormatter `
+    -Pattern "Paragraphs\s*\(" `
+    -Message "Optimized reference formatting should not use indexed paragraph access."
+
+Assert-Contains `
+    -Text $rangeFormatter `
+    -Pattern "With\s+entriesRange\.ParagraphFormat" `
+    -Message "Reference paragraph formatting should be applied to one range."
+
+Assert-Contains `
+    -Text $rangeFormatter `
+    -Pattern "With\s+entriesRange\.Font" `
+    -Message "Reference font formatting should be applied to one range."
+
+Assert-NotContains `
+    -Text $rangeFormatter `
+    -Pattern "\.Italic\s*=|\.Color\s*=" `
+    -Message "Reference range formatting should preserve italic and color by leaving them untouched."
 
 Assert-NotContains `
     -Text $fontHelper `
