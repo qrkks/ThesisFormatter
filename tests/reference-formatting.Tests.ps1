@@ -50,25 +50,32 @@ $fontHelper = Get-SubBody "ApplyRangeFontPreservingItalic"
 $bodyFormatter = Get-SubBody "FormatBodyParagraph"
 $referenceFormatter = Get-SubBody "FormatReferenceEntries"
 
-Assert-Contains `
+Assert-NotContains `
     -Text $fontHelper `
-    -Pattern "wasItalic\s*=\s*charRange\.Font\.Italic" `
-    -Message "The font helper should snapshot each character's italic state before applying base font formatting."
+    -Pattern "\.Characters\b|For\s+Each\s+charRange" `
+    -Message "Font formatting must operate on the whole range, not character by character."
 
 Assert-Contains `
     -Text $fontHelper `
-    -Pattern "wasColor\s*=\s*charRange\.Font\.Color" `
-    -Message "The font helper should snapshot each character's color before applying base font formatting."
+    -Pattern "With\s+sourceRange\.Font" `
+    -Message "Font formatting should update the supplied range in one operation."
 
-Assert-Contains `
-    -Text $fontHelper `
-    -Pattern "\.Italic\s*=\s*wasItalic" `
-    -Message "The font helper should restore each character's italic state after applying base font formatting."
+foreach ($property in @("NameFarEast", "Name", "Size", "Bold")) {
+    Assert-Contains `
+        -Text $fontHelper `
+        -Pattern "\.$property\s*=" `
+        -Message "Range font formatting should set $property."
+}
 
-Assert-Contains `
+Assert-NotContains `
     -Text $fontHelper `
-    -Pattern "\.Color\s*=\s*wasColor" `
-    -Message "The font helper should restore each character's color after applying base font formatting."
+    -Pattern "\.Italic\s*=" `
+    -Message "Italic formatting should be preserved by leaving it untouched."
+
+Assert-NotContains `
+    -Text $fontHelper `
+    -Pattern "\.Color\s*=" `
+    -Message "Font color should be preserved by leaving it untouched."
 
 Assert-Contains `
     -Text $bodyFormatter `
