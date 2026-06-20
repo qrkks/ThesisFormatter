@@ -130,9 +130,49 @@ Sub MergeAndFormatAbstract()
     Dim contentTxt As String
     Dim rngEnd As Range
     Dim rng As Range
-    
-    For i = ActiveDocument.Paragraphs.Count To 1 Step -1
-        Set para = ActiveDocument.Paragraphs(i)
+    Dim targetStarts(1 To 4) As Long
+    Dim targetCount As Integer
+    Dim sortI As Integer
+    Dim sortJ As Integer
+    Dim swapStart As Long
+    Dim targetStart As Long
+
+    targetStart = FindAbstractLabelParagraphStart("摘要")
+    If targetStart > 0 Then
+        targetCount = targetCount + 1
+        targetStarts(targetCount) = targetStart
+    End If
+
+    targetStart = FindAbstractLabelParagraphStart("关键词")
+    If targetStart > 0 Then
+        targetCount = targetCount + 1
+        targetStarts(targetCount) = targetStart
+    End If
+
+    targetStart = FindAbstractLabelParagraphStart("Abstract")
+    If targetStart > 0 Then
+        targetCount = targetCount + 1
+        targetStarts(targetCount) = targetStart
+    End If
+
+    targetStart = FindAbstractLabelParagraphStart("Keywords")
+    If targetStart > 0 Then
+        targetCount = targetCount + 1
+        targetStarts(targetCount) = targetStart
+    End If
+
+    For sortI = 1 To targetCount - 1
+        For sortJ = sortI + 1 To targetCount
+            If targetStarts(sortI) < targetStarts(sortJ) Then
+                swapStart = targetStarts(sortI)
+                targetStarts(sortI) = targetStarts(sortJ)
+                targetStarts(sortJ) = swapStart
+            End If
+        Next sortJ
+    Next sortI
+
+    For i = 1 To targetCount
+        Set para = ActiveDocument.Range(targetStarts(i), targetStarts(i)).Paragraphs(1)
         txt = Trim(Replace(para.Range.Text, vbCr, ""))
         If txt = "摘要" Or Left(txt, 3) = "摘要：" Or _
            txt = "关键词" Or Left(txt, 4) = "关键词：" Or _
@@ -275,6 +315,38 @@ Sub MergeAndFormatAbstract()
 
 
 End Sub
+
+Private Function FindAbstractLabelParagraphStart(ByVal label As String) As Long
+    Dim searchRange As Range
+    Dim para As Paragraph
+    Dim txt As String
+    Dim nextStart As Long
+
+    Set searchRange = ActiveDocument.Content.Duplicate
+    With searchRange.Find
+        .ClearFormatting
+        .Text = label
+        .Forward = True
+        .Wrap = wdFindStop
+        .Format = False
+        .MatchCase = True
+        .MatchWholeWord = False
+    End With
+
+    Do While searchRange.Find.Execute
+        Set para = searchRange.Paragraphs(1)
+        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+
+        If txt = label Or Left(txt, Len(label) + 1) = label & ":" Or _
+           Left(txt, Len(label) + 1) = label & "：" Then
+            FindAbstractLabelParagraphStart = para.Range.Start
+            Exit Function
+        End If
+
+        nextStart = searchRange.End
+        searchRange.SetRange Start:=nextStart, End:=ActiveDocument.Content.End
+    Loop
+End Function
 
 ' 目录处理相关宏
 
@@ -1147,55 +1219,12 @@ End Sub
 
 ' 内部统一格式化流程
 Private Sub RunSDUTCMFormatting()
-    Dim para As Paragraph
-    Dim txt As String
-    Dim i As Integer
-    Dim totalParagraphs As Integer
-    
-    totalParagraphs = ActiveDocument.Paragraphs.Count
-    
-    ' 1. Page setup
     SetPageAndBodyFormat
-
-    ' 2. Configure Word styles first, then apply direct formatting as fallback
     ConfigureSDUTCMStyles
-    
-    ' 3. Apply base paragraph formatting in one pass
-    For i = 1 To totalParagraphs
-        Set para = ActiveDocument.Paragraphs(i)
-        txt = Trim(Replace(para.Range.Text, vbCr, ""))
-        
-        If para.Style = ZhTitleStyleName() Then
-            FormatTitleParagraph para
-        ElseIf IsHeadingLevelParagraph(para, 1) Then
-            FormatLevel1Paragraph para
-        ElseIf IsHeadingLevelParagraph(para, 2) Then
-            FormatLevel2Paragraph para
-        ElseIf IsHeadingLevelParagraph(para, 3) Then
-            FormatLevel3Paragraph para
-        ElseIf IsCodeBlockParagraph(para) Then
-            FormatCompactParagraph para
-        ElseIf para.Style = ZhBodyTextStyleName() Or para.Style = "Normal" Or para.Style = "First Paragraph" Or para.Style = ZhBodyStyleName() Then
-            FormatBodyParagraph para
-        End If
-    Next i
-    
-    ' 4. Abstract and keywords
     MergeAndFormatAbstract
-    
-    ' 5. Table of contents
     ProcessTableOfContents
-    
-    ' 6. References
     ProcessReferencesWithSort
-    
-    ' 7. Tables
-    ProcessTables
-
-    ' 8. Images
     ProcessImages
-    
-    ' 9. Mixed page numbers by TOC
     ApplyMixedPageNumbersByTOC
 End Sub
 
