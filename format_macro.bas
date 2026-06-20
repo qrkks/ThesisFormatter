@@ -1285,8 +1285,8 @@ Private Sub ConfigureSDUTCMStyles()
     ConfigureHeadingStyleIfExists "Heading 3", 3
     ConfigureBodyStyleIfExists ZhBodyTextStyleName(), 24
     ConfigureBodyStyleIfExists ZhBodyStyleName(), 24
-    ConfigureBodyStyleIfExists "Normal", 0
-    ConfigureBodyStyleIfExists "First Paragraph", 0
+    ConfigureBodyStyleIfExists "Normal", 24
+    ConfigureBodyStyleIfExists "First Paragraph", 24
     ConfigureCodeBlockStyleIfExists "Source Code"
     ConfigureCodeBlockStyleIfExists "Code"
     ConfigureTOCTitleStyle
