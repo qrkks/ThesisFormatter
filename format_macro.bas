@@ -1224,6 +1224,7 @@ End Sub
 Private Sub RunSDUTCMFormatting()
     SetPageAndBodyFormat
     ConfigureSDUTCMStyles
+    ClearHeadingParagraphIndents
     MergeAndFormatAbstract
     ProcessTableOfContents
     ProcessReferencesWithSort
@@ -1290,6 +1291,23 @@ Private Sub ConfigureSDUTCMStyles()
     ConfigureCodeBlockStyleIfExists "Source Code"
     ConfigureCodeBlockStyleIfExists "Code"
     ConfigureTOCTitleStyle
+End Sub
+
+Private Sub ClearHeadingParagraphIndents()
+    Dim para As Paragraph
+    Dim outlineLevel As WdOutlineLevel
+
+    For Each para In ActiveDocument.Paragraphs
+        outlineLevel = para.OutlineLevel
+        If para.Style = ZhTitleStyleName() Or _
+           (outlineLevel >= wdOutlineLevel1 And outlineLevel <= wdOutlineLevel3) Then
+            With para.Range.ParagraphFormat
+                .FirstLineIndent = 0
+                .LeftIndent = 0
+                .RightIndent = 0
+            End With
+        End If
+    Next para
 End Sub
 
 Private Function GetStyleByName(ByVal styleName As String) As Style
