@@ -49,5 +49,8 @@ if ($abstractFormatter -notmatch "FindAbstractLabelParagraphStart") {
 if ($abstractFinder -notmatch "\.Find") {
     throw "Abstract label lookup should use Range.Find."
 }
+if ($abstractFinder -notmatch "nextStart\s*=\s*searchRange\.End\s*\+\s*1") {
+    throw "Abstract label lookup must advance past rejected matches."
+}
 
 Write-Host "Aggressive performance regression checks passed."

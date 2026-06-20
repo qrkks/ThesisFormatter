@@ -343,7 +343,8 @@ Private Function FindAbstractLabelParagraphStart(ByVal label As String) As Long
             Exit Function
         End If
 
-        nextStart = searchRange.End
+        If searchRange.End >= ActiveDocument.Content.End Then Exit Do
+        nextStart = searchRange.End + 1
         searchRange.SetRange Start:=nextStart, End:=ActiveDocument.Content.End
     Loop
 End Function
