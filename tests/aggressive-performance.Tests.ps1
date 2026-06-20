@@ -28,6 +28,7 @@ function Get-FunctionBody {
 }
 
 $pipeline = Get-SubBody "RunSDUTCMFormatting"
+$pageFormatter = Get-SubBody "SetPageAndBodyFormat"
 $abstractFormatter = Get-SubBody "MergeAndFormatAbstract"
 $abstractFinder = Get-FunctionBody "FindAbstractLabelParagraphStart"
 
@@ -39,6 +40,12 @@ if ($pipeline -match "ProcessTables") {
 }
 if ($pipeline -notmatch "ConfigureSDUTCMStyles") {
     throw "The aggressive default pipeline must configure styles."
+}
+if ($pageFormatter -match "For\s+Each\s+para") {
+    throw "Default line spacing must not be applied paragraph by paragraph."
+}
+if ($pageFormatter -notmatch "ActiveDocument\.Content\.ParagraphFormat\.LineSpacingRule") {
+    throw "Default line spacing should be applied to the document range once."
 }
 if ($abstractFormatter -match "ActiveDocument\.Paragraphs\s*\(") {
     throw "Abstract formatting must not scan paragraphs by index."

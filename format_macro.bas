@@ -112,11 +112,8 @@ Sub SetPageAndBodyFormat()
         .RightMargin = CentimetersToPoints(2.5)
     End With
 
-    ' 设置所有段落行距为1.5倍
-    Dim para As Paragraph
-    For Each para In ActiveDocument.Paragraphs
-        para.Range.ParagraphFormat.LineSpacingRule = wdLineSpace1pt5
-    Next para
+    ' 一次设置全文段落行距为1.5倍
+    ActiveDocument.Content.ParagraphFormat.LineSpacingRule = wdLineSpace1pt5
 
     ' MsgBox "页面和正文行距设置完成！"
 End Sub
