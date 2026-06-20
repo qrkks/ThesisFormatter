@@ -31,6 +31,28 @@ $pipeline = Get-SubBody "RunSDUTCMFormatting"
 $pageFormatter = Get-SubBody "SetPageAndBodyFormat"
 $abstractFormatter = Get-SubBody "MergeAndFormatAbstract"
 $abstractFinder = Get-FunctionBody "FindAbstractLabelParagraphStart"
+$styleConfiguration = Get-SubBody "ConfigureSDUTCMStyles"
+$titleStyleConfiguration = Get-SubBody "ConfigureTitleStyleIfExists"
+$headingStyleConfiguration = Get-SubBody "ConfigureHeadingStyleIfExists"
+
+foreach ($styleName in @(
+    'ZhBodyTextStyleName\(\)',
+    'ZhBodyStyleName\(\)',
+    '"Normal"',
+    '"First Paragraph"'
+)) {
+    if ($styleConfiguration -notmatch "ConfigureBodyStyleIfExists\s+$styleName,\s*24") {
+        throw "Body style $styleName should use a 24 pt first-line indent."
+    }
+}
+
+foreach ($styleBody in @($titleStyleConfiguration, $headingStyleConfiguration)) {
+    foreach ($property in @("FirstLineIndent", "LeftIndent", "RightIndent")) {
+        if ($styleBody -notmatch "\.$property\s*=\s*0") {
+            throw "Title and heading styles should explicitly set $property to zero."
+        }
+    }
+}
 
 if ($pipeline -match "For\s+i\s*=|FormatTitleParagraph|FormatLevel[123]Paragraph|FormatBodyParagraph") {
     throw "The aggressive default pipeline must not directly format every paragraph."
