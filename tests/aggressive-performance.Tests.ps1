@@ -34,6 +34,7 @@ $abstractFinder = Get-FunctionBody "FindAbstractLabelParagraphStart"
 $styleConfiguration = Get-SubBody "ConfigureSDUTCMStyles"
 $titleStyleConfiguration = Get-SubBody "ConfigureTitleStyleIfExists"
 $headingStyleConfiguration = Get-SubBody "ConfigureHeadingStyleIfExists"
+$headingIndentCleanup = Get-SubBody "ClearHeadingParagraphIndents"
 
 foreach ($styleName in @(
     'ZhBodyTextStyleName\(\)',
@@ -83,6 +84,27 @@ if ($abstractFinder -notmatch "InStr") {
 }
 if ($abstractFinder -match "\.Find") {
     throw "Abstract label lookup must not use Word Range.Find."
+}
+if ($pipeline -notmatch "ConfigureSDUTCMStyles[\s\S]*ClearHeadingParagraphIndents") {
+    throw "The default pipeline should clear direct heading indents after configuring styles."
+}
+if ($headingIndentCleanup -notmatch "For\s+Each\s+para\s+In\s+ActiveDocument\.Paragraphs") {
+    throw "Heading indent cleanup should enumerate document paragraphs once."
+}
+if ($headingIndentCleanup -notmatch "para\.Style\s*=\s*ZhTitleStyleName\(\)") {
+    throw "Heading indent cleanup should include the document title style."
+}
+if ($headingIndentCleanup -notmatch "wdOutlineLevel1" -or
+    $headingIndentCleanup -notmatch "wdOutlineLevel3") {
+    throw "Heading indent cleanup should include outline levels 1 through 3."
+}
+foreach ($property in @("FirstLineIndent", "LeftIndent", "RightIndent")) {
+    if ($headingIndentCleanup -notmatch "\.$property\s*=\s*0") {
+        throw "Heading indent cleanup should set $property to zero."
+    }
+}
+if ($headingIndentCleanup -match "\.Font\.|\.Alignment\s*=|\.LineSpacing") {
+    throw "Heading indent cleanup should not alter non-indent formatting."
 }
 
 Write-Host "Aggressive performance regression checks passed."
