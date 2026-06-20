@@ -136,26 +136,29 @@ Sub MergeAndFormatAbstract()
     Dim sortJ As Integer
     Dim swapStart As Long
     Dim targetStart As Long
+    Dim documentText As String
 
-    targetStart = FindAbstractLabelParagraphStart("摘要")
+    documentText = ActiveDocument.Content.Text
+
+    targetStart = FindAbstractLabelParagraphStart(documentText, "摘要")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("关键词")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "关键词")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("Abstract")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "Abstract")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("Keywords")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "Keywords")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
@@ -316,36 +319,38 @@ Sub MergeAndFormatAbstract()
 
 End Sub
 
-Private Function FindAbstractLabelParagraphStart(ByVal label As String) As Long
-    Dim searchRange As Range
-    Dim para As Paragraph
-    Dim txt As String
-    Dim nextStart As Long
+Private Function FindAbstractLabelParagraphStart(ByVal documentText As String, ByVal label As String) As Long
+    Dim searchStart As Long
+    Dim matchPos As Long
+    Dim afterPos As Long
+    Dim beforeChar As String
+    Dim afterChar As String
 
-    Set searchRange = ActiveDocument.Content.Duplicate
-    With searchRange.Find
-        .ClearFormatting
-        .Text = label
-        .Forward = True
-        .Wrap = wdFindStop
-        .Format = False
-        .MatchCase = True
-        .MatchWholeWord = False
-    End With
+    searchStart = 1
+    Do
+        matchPos = InStr(searchStart, documentText, label, vbBinaryCompare)
+        If matchPos = 0 Then Exit Do
 
-    Do While searchRange.Find.Execute
-        Set para = searchRange.Paragraphs(1)
-        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+        If matchPos = 1 Then
+            beforeChar = vbCr
+        Else
+            beforeChar = Mid(documentText, matchPos - 1, 1)
+        End If
 
-        If txt = label Or Left(txt, Len(label) + 1) = label & ":" Or _
-           Left(txt, Len(label) + 1) = label & "：" Then
-            FindAbstractLabelParagraphStart = para.Range.Start
+        afterPos = matchPos + Len(label)
+        If afterPos > Len(documentText) Then
+            afterChar = vbCr
+        Else
+            afterChar = Mid(documentText, afterPos, 1)
+        End If
+
+        If beforeChar = vbCr And _
+           (afterChar = vbCr Or afterChar = ":" Or afterChar = "：") Then
+            FindAbstractLabelParagraphStart = ActiveDocument.Content.Start + matchPos - 1
             Exit Function
         End If
 
-        If searchRange.End >= ActiveDocument.Content.End Then Exit Do
-        nextStart = searchRange.End + 1
-        searchRange.SetRange Start:=nextStart, End:=ActiveDocument.Content.End
+        searchStart = matchPos + Len(label)
     Loop
 End Function
 

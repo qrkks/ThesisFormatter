@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reduce the default full-document formatting path below 20 seconds by relying on Word styles, targeting abstract labels with `Range.Find`, and making table formatting opt-in.
+**Goal:** Reduce the default full-document formatting path below 20 seconds by relying on Word styles, targeting abstract labels in one in-memory text snapshot, and making table formatting opt-in.
 
-**Architecture:** The default pipeline becomes style-driven and removes the all-paragraph direct-formatting pass. Abstract handling retains its current formatting body but feeds it at most four paragraph positions discovered by `Range.Find`; `ProcessTables` remains public but leaves the default pipeline.
+**Architecture:** The default pipeline becomes style-driven and removes the all-paragraph direct-formatting pass. Abstract handling retains its current formatting body but feeds it at most four paragraph positions discovered with `InStr` over one `Content.Text` snapshot; `ProcessTables` remains public but leaves the default pipeline.
 
 **Tech Stack:** Word VBA, PowerShell regression scripts, Word COM automation, Git worktree
 
@@ -98,8 +98,14 @@ if ($abstractFormatter -match "ActiveDocument\.Paragraphs\s*\(") {
 if ($abstractFormatter -notmatch "FindAbstractLabelParagraphStart") {
     throw "Abstract formatting should target known labels."
 }
-if ($abstractFinder -notmatch "\.Find") {
-    throw "Abstract label lookup should use Range.Find."
+if ($abstractFormatter -notmatch "ActiveDocument\.Content\.Text") {
+    throw "Abstract formatting should read the document text once."
+}
+if ($abstractFinder -notmatch "InStr") {
+    throw "Abstract label lookup should search the in-memory document text."
+}
+if ($abstractFinder -match "\.Find") {
+    throw "Abstract label lookup must not use Word Range.Find."
 }
 
 Write-Host "Aggressive performance regression checks passed."
@@ -270,25 +276,29 @@ Retain the existing formatting body inside the loop, but replace its declaration
     Dim swapStart As Long
     Dim targetStart As Long
 
-    targetStart = FindAbstractLabelParagraphStart("摘要")
+    Dim documentText As String
+
+    documentText = ActiveDocument.Content.Text
+
+    targetStart = FindAbstractLabelParagraphStart(documentText, "摘要")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("关键词")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "关键词")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("Abstract")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "Abstract")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
     End If
 
-    targetStart = FindAbstractLabelParagraphStart("Keywords")
+    targetStart = FindAbstractLabelParagraphStart(documentText, "Keywords")
     If targetStart > 0 Then
         targetCount = targetCount + 1
         targetStarts(targetCount) = targetStart
@@ -315,35 +325,38 @@ Keep the existing `Next i` at the end. Descending positions preserve range valid
 Add immediately after `MergeAndFormatAbstract`:
 
 ```vb
-Private Function FindAbstractLabelParagraphStart(ByVal label As String) As Long
-    Dim searchRange As Range
-    Dim para As Paragraph
-    Dim txt As String
-    Dim nextStart As Long
+Private Function FindAbstractLabelParagraphStart(ByVal documentText As String, ByVal label As String) As Long
+    Dim searchStart As Long
+    Dim matchPos As Long
+    Dim afterPos As Long
+    Dim beforeChar As String
+    Dim afterChar As String
 
-    Set searchRange = ActiveDocument.Content.Duplicate
-    With searchRange.Find
-        .ClearFormatting
-        .Text = label
-        .Forward = True
-        .Wrap = wdFindStop
-        .Format = False
-        .MatchCase = True
-        .MatchWholeWord = False
-    End With
+    searchStart = 1
+    Do
+        matchPos = InStr(searchStart, documentText, label, vbBinaryCompare)
+        If matchPos = 0 Then Exit Do
 
-    Do While searchRange.Find.Execute
-        Set para = searchRange.Paragraphs(1)
-        txt = Trim(Replace(para.Range.Text, vbCr, ""))
+        If matchPos = 1 Then
+            beforeChar = vbCr
+        Else
+            beforeChar = Mid(documentText, matchPos - 1, 1)
+        End If
 
-        If txt = label Or Left(txt, Len(label) + 1) = label & ":" Or _
-           Left(txt, Len(label) + 1) = label & "：" Then
-            FindAbstractLabelParagraphStart = para.Range.Start
+        afterPos = matchPos + Len(label)
+        If afterPos > Len(documentText) Then
+            afterChar = vbCr
+        Else
+            afterChar = Mid(documentText, afterPos, 1)
+        End If
+
+        If beforeChar = vbCr And _
+           (afterChar = vbCr Or afterChar = ":" Or afterChar = "：") Then
+            FindAbstractLabelParagraphStart = ActiveDocument.Content.Start + matchPos - 1
             Exit Function
         End If
 
-        nextStart = searchRange.End
-        searchRange.SetRange Start:=nextStart, End:=ActiveDocument.Content.End
+        searchStart = matchPos + Len(label)
     Loop
 End Function
 ```

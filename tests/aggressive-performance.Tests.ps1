@@ -46,11 +46,14 @@ if ($abstractFormatter -match "ActiveDocument\.Paragraphs\s*\(") {
 if ($abstractFormatter -notmatch "FindAbstractLabelParagraphStart") {
     throw "Abstract formatting should target known labels."
 }
-if ($abstractFinder -notmatch "\.Find") {
-    throw "Abstract label lookup should use Range.Find."
+if ($abstractFormatter -notmatch "ActiveDocument\.Content\.Text") {
+    throw "Abstract formatting should read the document text once."
 }
-if ($abstractFinder -notmatch "nextStart\s*=\s*searchRange\.End\s*\+\s*1") {
-    throw "Abstract label lookup must advance past rejected matches."
+if ($abstractFinder -notmatch "InStr") {
+    throw "Abstract label lookup should search the in-memory document text."
+}
+if ($abstractFinder -match "\.Find") {
+    throw "Abstract label lookup must not use Word Range.Find."
 }
 
 Write-Host "Aggressive performance regression checks passed."
