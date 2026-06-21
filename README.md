@@ -164,6 +164,23 @@
 
 当前规则是“基础规范”，仍建议人工微调。
 
+## ⚡ 性能与测试
+
+性能测试应在文档副本上进行，不能覆盖原论文。可通过环境变量指定代表性文档并运行完整流程：
+
+```powershell
+$benchmark = $env:THESIS_FORMATTER_BENCHMARK_DOC
+& ./tests/full-performance-profile.ps1 -DocumentPath $benchmark -MaxSeconds 120
+```
+
+2026-06-21 使用一份包含 815 个段落和 11 个表格的实际文档测试：
+
+- 完整格式化流程由约 `132.5` 秒降至 `49.2` 秒。
+- 混合页码阶段由约 `98.9` 秒降至 `3.6` 秒。
+- 主要优化是将目录后分节符清理限制在目录与正文之间的局部范围，避免通过 `ActiveDocument.Paragraphs(i)` 按索引扫描全文。
+
+这些数字用于观察同一环境下的性能回归，不是固定耗时承诺。Word 的后台分页、缓存、文档是否打开以及 Office 当前状态都可能造成明显波动；调整主流程后应比较多次运行结果，并检查生成文档的目录、页码、表格和标题格式。
+
 ## 📁 文件说明
 
 - [`format_macro.bas`](./format_macro.bas)
