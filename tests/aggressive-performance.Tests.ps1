@@ -35,6 +35,7 @@ $styleConfiguration = Get-SubBody "ConfigureSDUTCMStyles"
 $titleStyleConfiguration = Get-SubBody "ConfigureTitleStyleIfExists"
 $headingStyleConfiguration = Get-SubBody "ConfigureHeadingStyleIfExists"
 $headingIndentCleanup = Get-SubBody "ClearHeadingParagraphIndents"
+$sectionBreakSetup = Get-SubBody "EnsureSectionBreakAfterTableOfContents"
 
 foreach ($styleName in @(
     'ZhBodyTextStyleName\(\)',
@@ -105,6 +106,12 @@ foreach ($property in @("FirstLineIndent", "LeftIndent", "RightIndent")) {
 }
 if ($headingIndentCleanup -match "\.Font\.|\.Alignment\s*=|\.LineSpacing") {
     throw "Heading indent cleanup should not alter non-indent formatting."
+}
+if ($sectionBreakSetup -match "ActiveDocument\.Paragraphs\s*\(") {
+    throw "TOC section-break setup must not scan the full paragraph collection by index."
+}
+if ($sectionBreakSetup -notmatch "gapRange\.Paragraphs") {
+    throw "TOC section-break cleanup should enumerate only the bounded gap range."
 }
 
 Write-Host "Aggressive performance regression checks passed."

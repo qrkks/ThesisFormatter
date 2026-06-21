@@ -1031,7 +1031,6 @@ Private Sub EnsureSectionBreakAfterTableOfContents()
     Dim breakRange As Range
     Dim gapRange As Range
     Dim txt As String
-    Dim i As Integer
     
     If ActiveDocument.Sections.Count > 1 Then Exit Sub
     
@@ -1066,8 +1065,8 @@ Private Sub EnsureSectionBreakAfterTableOfContents()
         Exit Sub
     End If
 
-    For i = ActiveDocument.Paragraphs.Count To 1 Step -1
-        Set cleanupPara = ActiveDocument.Paragraphs(i)
+    Set gapRange = ActiveDocument.Range(tocField.Result.End, nextPara.Range.Start)
+    For Each cleanupPara In gapRange.Paragraphs
         If cleanupPara.Range.Start >= tocField.Result.End And cleanupPara.Range.Start < nextPara.Range.Start Then
             txt = Trim(Replace(cleanupPara.Range.Text, vbCr, ""))
             If Len(txt) = 0 Then
@@ -1076,7 +1075,7 @@ Private Sub EnsureSectionBreakAfterTableOfContents()
                 On Error GoTo 0
             End If
         End If
-    Next i
+    Next cleanupPara
 
     nextPara.Range.ParagraphFormat.PageBreakBefore = False
     Set breakRange = nextPara.Range.Duplicate
