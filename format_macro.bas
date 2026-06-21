@@ -1228,6 +1228,7 @@ Private Sub RunSDUTCMFormatting()
     MergeAndFormatAbstract
     ProcessTableOfContents
     ProcessReferencesWithSort
+    ProcessTables
     ProcessImages
     ApplyMixedPageNumbersByTOC
 End Sub
