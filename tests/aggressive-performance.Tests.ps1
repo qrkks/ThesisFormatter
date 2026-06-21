@@ -58,8 +58,8 @@ foreach ($styleBody in @($titleStyleConfiguration, $headingStyleConfiguration)) 
 if ($pipeline -match "For\s+i\s*=|FormatTitleParagraph|FormatLevel[123]Paragraph|FormatBodyParagraph") {
     throw "The aggressive default pipeline must not directly format every paragraph."
 }
-if ($pipeline -match "ProcessTables") {
-    throw "Table formatting should be opt-in in the aggressive default pipeline."
+if ($pipeline -notmatch "ProcessTables") {
+    throw "The default pipeline should format tables after reference processing."
 }
 if ($pipeline -notmatch "ConfigureSDUTCMStyles") {
     throw "The aggressive default pipeline must configure styles."
