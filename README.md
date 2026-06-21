@@ -172,6 +172,8 @@
   格式目标说明
 - [`MACRO_REFERENCE.md`](./MACRO_REFERENCE.md)
   宏与函数说明
+- [`CHANGELOG.md`](./CHANGELOG.md)
+  版本更新记录
 - [`LICENSE`](./LICENSE)
   MIT 许可证
 
