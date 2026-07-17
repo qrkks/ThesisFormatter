@@ -192,4 +192,4 @@
 
 欢迎：
 
-- 提 [issue](https://github.com/qrkks/ThesisFormatter/issues) 或直接联系我
+- 提 [issue](https://github.com/qrkks/ThesisFormatter/issues) 或直接 [联系我](mailto:34028312@qq.com)
