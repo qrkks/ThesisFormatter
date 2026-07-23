@@ -189,9 +189,13 @@
 
 ## 7. 表格相关
 
+### `ApplySingleSpacingToTables`
+
+默认主流程使用的内部过程。按表格整体 `Range` 将单元格段落设为单倍行距，不改动字体、对齐、缩进、边框、列宽或 AutoFit 设置。
+
 ### `ProcessTables`
 
-表格总入口，遍历文档中的所有 Word 表格。
+可选的三线表格式化入口，遍历文档中的所有 Word 表格；默认主流程不调用它。
 
 ### `ApplyThreeLineTableStyle`
 

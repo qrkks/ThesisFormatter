@@ -1184,7 +1184,7 @@ Public Sub FormatThesisToSDUTCM()
                      "4. 摘要和关键词格式化" & vbCrLf & _
                      "5. 目录处理（已有目录则更新，否则按“目录”位置插入）" & vbCrLf & _
                      "6. 参考文献格式化" & vbCrLf & _
-                     "7. 表格处理（三线表）" & vbCrLf & _
+                     "7. 表格内单倍行距（保留已有表格样式）" & vbCrLf & _
                      "8. 图片与图题处理" & vbCrLf & _
                      "9. 页码处理（目录前罗马数字，目录后阿拉伯数字）" & vbCrLf & vbCrLf & _
                      "是否继续？", vbYesNo + vbQuestion, "山东中医药大学论文格式化")
@@ -1227,7 +1227,7 @@ Private Sub RunSDUTCMFormatting()
     MergeAndFormatAbstract
     ProcessTableOfContents
     ProcessReferencesWithSort
-    ProcessTables
+    ApplySingleSpacingToTables
     ProcessImages
     ApplyMixedPageNumbersByTOC
 End Sub
@@ -1705,7 +1705,16 @@ Private Sub ApplyRangeFontPreservingItalic(ByVal sourceRange As Range, ByVal eas
     End With
 End Sub
 
-' 表格格式化：居中三线表
+' 默认仅恢复表格内的单倍行距，不改动已经做好的表格格式
+Private Sub ApplySingleSpacingToTables()
+    Dim tbl As Table
+
+    For Each tbl In ActiveDocument.Tables
+        tbl.Range.ParagraphFormat.LineSpacingRule = wdLineSpaceSingle
+    Next tbl
+End Sub
+
+' 可选表格格式化：居中三线表，需单独运行
 Sub ProcessTables()
     Dim tbl As Table
 

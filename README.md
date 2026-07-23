@@ -32,20 +32,32 @@
 - 摘要和关键词
 - 目录
 - 参考文献
-- 表格
+- 表格内单倍行距（保留已有表格样式）
 - 图片与图题
 - 页码
   目录前为罗马数字，目录后为阿拉伯数字
 
 ## 🛠️ 安装步骤
 
-1. 打开你的 Word 文档。
-2. 按 `Alt + F11` 打开 VBA 编辑器。
-3. 在 VBA 编辑器顶部菜单中选择“插入” -> “模块”。
-4. 打开仓库中的 [`format_macro.bas`](./format_macro.bas)。
-5. 将其中内容复制到新建模块中。
-6. 如需长期保留宏，建议保存为 `.docm`。
-   如果只是当前会话临时运行，不立即保存也可以。
+推荐安装为独立的全局 Word 加载项。先关闭 Word，然后在仓库目录运行：
+
+```powershell
+& ./install.ps1
+```
+
+安装器会询问 Word 自己的 STARTUP 路径，生成并加载 `ThesisFormatter.dotm`。安装一次后，所有普通 `.docx` 文档都能使用宏，不需要另存为 `.docm`，也不需要修改 `Normal.dotm`。
+
+以后更新仓库代码后，重新运行同一条命令即可升级；旧加载项会自动备份到 `%LOCALAPPDATA%\ThesisFormatter\backups`。
+
+卸载命令：
+
+```powershell
+& ./install.ps1 -Uninstall
+```
+
+如果系统阻止程序访问 VBA 工程，请在 Word 的“信任中心 -> 宏设置”中启用“信任对 VBA 工程对象模型的访问”，然后重新运行安装命令。
+
+手动复制 [`format_macro.bas`](./format_macro.bas) 到 VBA 编辑器仍可作为临时使用方式，但不再是推荐安装方法。
 
 ## ▶️ 如何运行
 
@@ -66,8 +78,8 @@
    如果已有目录域，会更新目录并统一目录标题。
    如果没有目录域，但有“目录”标题或文字，会在“目录”位置插入目录。
 6. 处理参考文献。
-7. 处理表格。
-   表格会居中，并按三线表处理。
+7. 将表格内段落恢复为单倍行距。
+   不改动已有表格的字体、对齐、缩进、边框、列宽或 AutoFit 设置。
 8. 处理图片和图题。
 9. 设置页码。
    目录前为罗马数字，目录后为阿拉伯数字。
@@ -185,6 +197,8 @@ $benchmark = $env:THESIS_FORMATTER_BENCHMARK_DOC
 
 - [`format_macro.bas`](./format_macro.bas)
   主宏文件
+- [`install.ps1`](./install.ps1)
+  全局 Word 加载项的安装、升级与卸载脚本
 - [`FORMAT_SPEC.md`](./FORMAT_SPEC.md)
   格式目标说明
 - [`MACRO_REFERENCE.md`](./MACRO_REFERENCE.md)
@@ -196,7 +210,6 @@ $benchmark = $env:THESIS_FORMATTER_BENCHMARK_DOC
 
 ## 📦 未来计划
 
-- 提供 `.docm` 一键使用版本
 - 增强参考文献识别能力
 - 支持更多心理学期刊模板
 
